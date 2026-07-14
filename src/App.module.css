@@ -37,6 +37,9 @@
 }
 
 .navItem {
+  background: transparent;
+  border: none;
+  font-family: inherit;
   padding: 6px 12px;
   border-radius: var(--radius-sm);
   font-size: 13px;
@@ -48,6 +51,22 @@
 .navItemActive {
   color: var(--color-primary);
   background: var(--color-primary-soft);
+}
+
+button.navItem {
+  cursor: pointer;
+}
+
+.boardSummary {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.summaryLine {
+  margin: 4px 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
 }
 
 .page {
