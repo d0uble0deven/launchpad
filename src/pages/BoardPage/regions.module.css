@@ -1,0 +1,39 @@
+.phaseRegion {
+  border-left: 1.5px dashed #d3d6df;
+  height: 100%;
+}
+
+.phaseRegionStriped {
+  background: rgba(31, 36, 48, 0.022);
+}
+
+.phaseLabel {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 15px;
+  font-weight: 600;
+  color: #3f4453;
+  white-space: nowrap;
+}
+
+.lane {
+  border-bottom: 1px solid #e3e5eb;
+}
+
+.laneLabel {
+  position: absolute;
+  top: 18px;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(31, 36, 48, 0.1);
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(31, 36, 48, 0.8);
+  box-shadow: var(--shadow-card);
+  white-space: nowrap;
+}

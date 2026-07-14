@@ -57,42 +57,10 @@ button.navItem {
   cursor: pointer;
 }
 
-.boardSummary {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border);
-}
-
-.summaryLine {
-  margin: 4px 0;
-  font-size: 13px;
-  color: var(--color-text-muted);
-}
-
 .page {
   flex: 1;
+  min-height: 0;
   overflow: auto;
   display: flex;
-  align-items: center;
   justify-content: center;
-}
-
-.placeholder {
-  background: var(--color-surface);
-  border: 1px dashed var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-card);
-  padding: 40px 56px;
-  text-align: center;
-}
-
-.placeholderTitle {
-  margin: 0 0 8px;
-  font-size: 20px;
-}
-
-.placeholderText {
-  margin: 0;
-  font-size: 14px;
-  color: var(--color-text-muted);
 }
