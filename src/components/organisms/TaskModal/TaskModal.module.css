@@ -213,10 +213,17 @@
 
 .footer {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 8px;
   padding: 12px 24px;
   border-top: 1px solid var(--color-border);
   background: #fafbfc;
   flex-shrink: 0;
+}
+
+.footerActions {
+  display: flex;
+  gap: 8px;
+  margin-right: auto;
 }

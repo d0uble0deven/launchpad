@@ -79,6 +79,23 @@ function TaskModal({ task, board, onClose, onSave }: TaskModalProps) {
   const removeLink = (id: string) =>
     patch({ links: draft.links.filter((link) => link.id !== id) });
 
+  const applyStatus = (status: TaskStatus) => {
+    const updated: TaskCard = {
+      ...draft,
+      status,
+      activity: [
+        ...draft.activity,
+        {
+          id: `${draft.id}-a${Date.now()}`,
+          timestamp: new Date().toISOString(),
+          message: `Marked ${STATUS_LABELS[status]}`,
+        },
+      ],
+    };
+    setDraft(updated);
+    onSave(updated);
+  };
+
   const handleSave = () => {
     const updated: TaskCard = {
       ...draft,
@@ -285,6 +302,31 @@ function TaskModal({ task, board, onClose, onSave }: TaskModalProps) {
         </div>
 
         <footer className={styles.footer}>
+          <div className={styles.footerActions}>
+            <Button
+              size="sm"
+              onClick={() => applyStatus('done')}
+              disabled={draft.status === 'done'}
+            >
+              Mark Done
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => applyStatus('blocked')}
+              disabled={draft.status === 'blocked'}
+            >
+              Mark Blocked
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => applyStatus('na')}
+              disabled={draft.status === 'na'}
+            >
+              Mark N/A
+            </Button>
+          </div>
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>

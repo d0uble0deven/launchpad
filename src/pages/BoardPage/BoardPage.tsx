@@ -3,6 +3,7 @@ import { Background, BackgroundVariant, ReactFlow } from '@xyflow/react';
 import type { Node, NodeChange, NodeMouseHandler, OnNodeDrag } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import TaskModal from '../../components/organisms/TaskModal/TaskModal';
+import { recalculateDependencies } from '../../logic/dependencies';
 import type { TaskCard as TaskCardData } from '../../types/board';
 import { buildMockBoard, MOCK_EMPLOYEE } from '../../data/mockBoard';
 import LaneNode from './LaneNode';
@@ -36,12 +37,21 @@ function BoardPage() {
 
   const saveTask = useCallback((updated: TaskCardData) => {
     console.log(`[save] "${updated.title}"`, updated);
-    setBoard((prev) => ({
-      ...prev,
-      tasks: prev.tasks.map((task) =>
+    setBoard((prev) => {
+      const merged = prev.tasks.map((task) =>
         task.id === updated.id ? updated : task,
-      ),
-    }));
+      );
+      const { tasks, changes } = recalculateDependencies(merged);
+      if (changes.length === 0) {
+        console.log('[deps] recalculated — no changes');
+      }
+      for (const change of changes) {
+        console.log(
+          `[deps] "${change.title}": ${change.from} → ${change.to}`,
+        );
+      }
+      return { ...prev, tasks };
+    });
   }, []);
 
   // Board state is the source of truth: React Flow position changes are
