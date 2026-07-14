@@ -1,0 +1,51 @@
+.gallery {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 28px 24px 64px;
+  align-self: flex-start;
+}
+
+.heading {
+  margin: 0 0 20px;
+  font-size: 18px;
+  color: var(--color-text-muted);
+}
+
+.section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+
+.sectionTitle {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.row + .row {
+  margin-top: 12px;
+}
+
+.formRow {
+  display: flex;
+  gap: 16px;
+  max-width: 480px;
+}
+
+.formRow > * {
+  flex: 1;
+}

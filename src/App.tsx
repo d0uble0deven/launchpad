@@ -1,4 +1,5 @@
 import styles from './App.module.css';
+import ComponentGallery from './dev/ComponentGallery';
 
 function App() {
   return (
@@ -20,12 +21,8 @@ function App() {
       </header>
 
       <main className={styles.page}>
-        <div className={styles.placeholder}>
-          <h1 className={styles.placeholderTitle}>Mural Board Page</h1>
-          <p className={styles.placeholderText}>
-            The interactive onboarding board goes here (Step 1.5).
-          </p>
-        </div>
+        {/* Temporary gallery for Step 1.3; the board page replaces it in Step 1.5. */}
+        <ComponentGallery />
       </main>
     </div>
   );

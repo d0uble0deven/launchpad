@@ -1,0 +1,56 @@
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.intake {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
+.hrEmployment {
+  background: #fce7f3;
+  color: #be185d;
+}
+
+.compliance {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.accountAccess {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.projectTeamSetup {
+  background: #e0e7ff;
+  color: #4338ca;
+}
+
+.buddyWelcome {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.newHireFirstWeek {
+  background: #cffafe;
+  color: #0e7490;
+}
+
+.reviewsFollowUp {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.automation {
+  background: #fef9c3;
+  color: #a16207;
+}
