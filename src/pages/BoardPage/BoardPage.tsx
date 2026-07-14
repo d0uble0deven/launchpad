@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Background, BackgroundVariant, ReactFlow } from '@xyflow/react';
 import type { Node, NodeChange, NodeMouseHandler, OnNodeDrag } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import Button from '../../components/atoms/Button/Button';
 import TaskModal from '../../components/organisms/TaskModal/TaskModal';
 import { recalculateDependencies } from '../../logic/dependencies';
 import type { TaskCard as TaskCardData } from '../../types/board';
@@ -35,6 +36,92 @@ function BoardPage() {
 
   const closeModal = useCallback(() => setSelectedTaskId(null), []);
 
+  const logDependencyChanges = (changes: { title: string; from: string; to: string }[]) => {
+    if (changes.length === 0) {
+      console.log('[deps] recalculated — no changes');
+    }
+    for (const change of changes) {
+      console.log(`[deps] "${change.title}": ${change.from} → ${change.to}`);
+    }
+  };
+
+  const createTask = useCallback(() => {
+    const phase = board.phases[0]!;
+    const lane = board.swimlanes[0]!;
+    const task: TaskCardData = {
+      id: `t-${Date.now()}`,
+      title: 'New task',
+      description: '',
+      ownerId: lane.id,
+      status: 'not-started',
+      category: 'intake',
+      phaseId: phase.id,
+      dependsOn: [],
+      links: [],
+      notes: '',
+      activity: [
+        {
+          id: `t-${Date.now()}-a1`,
+          timestamp: new Date().toISOString(),
+          message: 'Card created',
+        },
+      ],
+      position: { x: phase.x + 20, y: lane.y + 24 },
+    };
+    console.log(`[card] created "${task.title}" in ${phase.label} / ${lane.label}`);
+    setBoard((prev) => ({ ...prev, tasks: [...prev.tasks, task] }));
+    setSelectedTaskId(task.id);
+  }, [board]);
+
+  const deleteTask = useCallback(
+    (id: string) => {
+      const target = board.tasks.find((task) => task.id === id);
+      if (!target) return;
+      console.log(`[card] deleted "${target.title}"`);
+      setBoard((prev) => {
+        const remaining = prev.tasks
+          .filter((task) => task.id !== id)
+          .map((task) =>
+            task.dependsOn.includes(id)
+              ? { ...task, dependsOn: task.dependsOn.filter((d) => d !== id) }
+              : task,
+          );
+        const { tasks, changes } = recalculateDependencies(remaining);
+        logDependencyChanges(changes);
+        return { ...prev, tasks };
+      });
+      setSelectedTaskId(null);
+    },
+    [board],
+  );
+
+  const duplicateTask = useCallback(
+    (id: string) => {
+      const source = board.tasks.find((task) => task.id === id);
+      if (!source) return;
+      const copy: TaskCardData = {
+        ...structuredClone(source),
+        id: `t-${Date.now()}`,
+        title: `${source.title} (copy)`,
+        position: {
+          x: source.position.x + 28,
+          y: source.position.y + 28,
+        },
+        activity: [
+          {
+            id: `t-${Date.now()}-a1`,
+            timestamp: new Date().toISOString(),
+            message: `Duplicated from "${source.title}"`,
+          },
+        ],
+      };
+      console.log(`[card] duplicated "${source.title}" → "${copy.title}"`);
+      setBoard((prev) => ({ ...prev, tasks: [...prev.tasks, copy] }));
+      setSelectedTaskId(copy.id);
+    },
+    [board],
+  );
+
   const saveTask = useCallback((updated: TaskCardData) => {
     console.log(`[save] "${updated.title}"`, updated);
     setBoard((prev) => {
@@ -42,14 +129,7 @@ function BoardPage() {
         task.id === updated.id ? updated : task,
       );
       const { tasks, changes } = recalculateDependencies(merged);
-      if (changes.length === 0) {
-        console.log('[deps] recalculated — no changes');
-      }
-      for (const change of changes) {
-        console.log(
-          `[deps] "${change.title}": ${change.from} → ${change.to}`,
-        );
-      }
+      logDependencyChanges(changes);
       return { ...prev, tasks };
     });
   }, []);
@@ -171,6 +251,11 @@ function BoardPage() {
           {MOCK_EMPLOYEE.role} · {MOCK_EMPLOYEE.location} · Started{' '}
           {MOCK_EMPLOYEE.startDate} · Step {MOCK_EMPLOYEE.currentStep}
         </span>
+        <div className={styles.headerActions}>
+          <Button variant="primary" size="sm" onClick={createTask}>
+            + New Card
+          </Button>
+        </div>
       </div>
       <div className={styles.canvas}>
         <ReactFlow
@@ -195,10 +280,13 @@ function BoardPage() {
       </div>
       {selectedTask && (
         <TaskModal
+          key={selectedTask.id}
           task={selectedTask}
           board={board}
           onClose={closeModal}
           onSave={saveTask}
+          onDelete={() => deleteTask(selectedTask.id)}
+          onDuplicate={() => duplicateTask(selectedTask.id)}
         />
       )}
     </div>

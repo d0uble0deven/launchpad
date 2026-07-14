@@ -27,6 +27,10 @@
   color: var(--color-text-muted);
 }
 
+.headerActions {
+  margin-left: auto;
+}
+
 .canvas {
   flex: 1;
   min-height: 0;

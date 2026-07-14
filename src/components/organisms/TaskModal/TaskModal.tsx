@@ -20,6 +20,8 @@ type TaskModalProps = {
   board: OnboardingBoard;
   onClose: () => void;
   onSave: (task: TaskCard) => void;
+  onDelete: () => void;
+  onDuplicate: () => void;
 };
 
 const STATUS_OPTIONS = (
@@ -35,8 +37,16 @@ function formatTimestamp(iso: string): string {
   return Number.isNaN(date.getTime()) ? iso : date.toLocaleString();
 }
 
-function TaskModal({ task, board, onClose, onSave }: TaskModalProps) {
+function TaskModal({
+  task,
+  board,
+  onClose,
+  onSave,
+  onDelete,
+  onDuplicate,
+}: TaskModalProps) {
   const [draft, setDraft] = useState<TaskCard>(() => structuredClone(task));
+  const [deleteArmed, setDeleteArmed] = useState(false);
 
   const lane = board.swimlanes.find((l) => l.id === draft.ownerId);
   const phase = board.phases.find((p) => p.id === draft.phaseId);
@@ -325,6 +335,17 @@ function TaskModal({ task, board, onClose, onSave }: TaskModalProps) {
               disabled={draft.status === 'na'}
             >
               Mark N/A
+            </Button>
+            <Button size="sm" onClick={onDuplicate}>
+              Duplicate
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => (deleteArmed ? onDelete() : setDeleteArmed(true))}
+              onBlur={() => setDeleteArmed(false)}
+            >
+              {deleteArmed ? 'Confirm delete?' : 'Delete'}
             </Button>
           </div>
           <Button variant="ghost" onClick={onClose}>
