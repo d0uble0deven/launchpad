@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Background, BackgroundVariant, ReactFlow } from '@xyflow/react';
-import type { Node } from '@xyflow/react';
+import type { Node, NodeChange, OnNodeDrag } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import type { TaskCard as TaskCardData } from '../../types/board';
 import { buildMockBoard, MOCK_EMPLOYEE } from '../../data/mockBoard';
 import LaneNode from './LaneNode';
 import PhaseRegionNode from './PhaseRegionNode';
@@ -17,14 +18,53 @@ const nodeTypes = {
 const CANVAS_MARGIN = 60;
 
 function BoardPage() {
-  const [board] = useState(buildMockBoard);
+  const [board, setBoard] = useState(buildMockBoard);
+
+  // Board state is the source of truth: React Flow position changes are
+  // written straight back into the tasks, so cards follow the cursor and the
+  // board always holds current positions (persisted in Step 1.11).
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    const moves = new Map<string, { x: number; y: number }>();
+    for (const change of changes) {
+      if (change.type === 'position' && change.position) {
+        moves.set(change.id, change.position);
+      }
+    }
+    if (moves.size === 0) return;
+    setBoard((prev) => ({
+      ...prev,
+      tasks: prev.tasks.map((task) =>
+        moves.has(task.id)
+          ? { ...task, position: moves.get(task.id)! }
+          : task,
+      ),
+    }));
+  }, []);
+
+  const logDrag = (phase: 'start' | 'end', node: Node) => {
+    if (node.type !== 'task') return;
+    const task = node.data.task as TaskCardData;
+    console.log(
+      `[drag] ${phase} "${task.title}" at (${Math.round(node.position.x)}, ${Math.round(node.position.y)})`,
+    );
+  };
+
+  const onNodeDragStart: OnNodeDrag = useCallback((_event, node) => {
+    logDrag('start', node);
+  }, []);
+
+  const onNodeDragStop: OnNodeDrag = useCallback((_event, node) => {
+    logDrag('end', node);
+  }, []);
 
   useEffect(() => {
     console.log('[data] mock board loaded', board);
     console.log(
       `[data] ${board.tasks.length} tasks across ${board.phases.length} phases and ${board.swimlanes.length} swimlanes`,
     );
-  }, [board]);
+    // Log the initial board once on mount; drags update state continuously.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const nodes: Node[] = useMemo(() => {
     const lastPhase = board.phases[board.phases.length - 1]!;
@@ -83,7 +123,7 @@ function BoardPage() {
         ownerLabel: laneById[task.ownerId]?.label ?? task.ownerId,
         phaseLabel: phaseById[task.phaseId]?.label ?? '',
       },
-      draggable: false,
+      draggable: true,
     }));
 
     return [...phaseNodes, ...laneNodes, ...taskNodes];
@@ -103,10 +143,12 @@ function BoardPage() {
           nodes={nodes}
           edges={[]}
           nodeTypes={nodeTypes}
+          onNodesChange={onNodesChange}
+          onNodeDragStart={onNodeDragStart}
+          onNodeDragStop={onNodeDragStop}
           fitView
           minZoom={0.08}
           maxZoom={1.75}
-          nodesDraggable={false}
         >
           <Background
             variant={BackgroundVariant.Dots}
