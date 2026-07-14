@@ -1,5 +1,10 @@
 .taskNode {
   position: relative;
+  transition: opacity 0.15s ease;
+}
+
+.dimmed {
+  opacity: 0.15;
 }
 
 .handle {

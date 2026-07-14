@@ -29,6 +29,15 @@
 
 .headerActions {
   margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filters {
+  display: flex;
+  gap: 6px;
+  margin-right: 8px;
 }
 
 .canvas {

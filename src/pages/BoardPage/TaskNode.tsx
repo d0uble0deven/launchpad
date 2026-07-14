@@ -10,6 +10,7 @@ export type TaskNodeType = Node<
     accentColor: string;
     ownerLabel: string;
     phaseLabel: string;
+    dimmed: boolean;
   },
   'task'
 >;
@@ -17,7 +18,9 @@ export type TaskNodeType = Node<
 function TaskNode({ data }: NodeProps<TaskNodeType>) {
   const { task } = data;
   return (
-    <div className={styles.taskNode}>
+    <div
+      className={`${styles.taskNode} ${data.dimmed ? styles.dimmed : ''}`}
+    >
       <Handle
         type="target"
         position={Position.Left}

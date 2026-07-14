@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Background, BackgroundVariant, ReactFlow } from '@xyflow/react';
+import { Background, BackgroundVariant, Controls, ReactFlow } from '@xyflow/react';
 import type { Node, NodeChange, NodeMouseHandler, OnNodeDrag } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import Button from '../../components/atoms/Button/Button';
+import Select from '../../components/atoms/Select/Select';
 import TaskModal from '../../components/organisms/TaskModal/TaskModal';
 import { recalculateDependencies } from '../../logic/dependencies';
-import type { TaskCard as TaskCardData } from '../../types/board';
+import { clearBoard, loadBoard, saveBoard } from '../../logic/storage';
+import type {
+  OnboardingBoard,
+  TaskCard as TaskCardData,
+  TaskCategory,
+  TaskStatus,
+} from '../../types/board';
+import { CATEGORY_LABELS, STATUS_LABELS } from '../../types/board';
 import { buildMockBoard, MOCK_EMPLOYEE } from '../../data/mockBoard';
 import LaneNode from './LaneNode';
 import PhaseRegionNode from './PhaseRegionNode';
@@ -20,9 +28,48 @@ const nodeTypes = {
 
 const CANVAS_MARGIN = 60;
 
+const STATUS_FILTER_OPTIONS = [
+  { value: 'all', label: 'All statuses' },
+  ...(Object.entries(STATUS_LABELS) as Array<[TaskStatus, string]>).map(
+    ([value, label]) => ({ value, label }),
+  ),
+];
+
+const CATEGORY_FILTER_OPTIONS = [
+  { value: 'all', label: 'All categories' },
+  ...(Object.entries(CATEGORY_LABELS) as Array<[TaskCategory, string]>).map(
+    ([value, label]) => ({ value, label }),
+  ),
+];
+
 function BoardPage() {
-  const [board, setBoard] = useState(buildMockBoard);
+  const [board, setBoard] = useState<OnboardingBoard>(() => {
+    const saved = loadBoard();
+    if (saved) {
+      console.log('[storage] loaded saved board from localStorage');
+      return saved;
+    }
+    console.log('[storage] no saved board — using mock data');
+    return buildMockBoard();
+  });
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<TaskCategory | 'all'>(
+    'all',
+  );
+
+  // Persist every board change (debounced so drag ticks don't thrash).
+  useEffect(() => {
+    const timer = setTimeout(() => saveBoard(board), 300);
+    return () => clearTimeout(timer);
+  }, [board]);
+
+  const resetBoard = useCallback(() => {
+    clearBoard();
+    setBoard(buildMockBoard());
+    setSelectedTaskId(null);
+    console.log('[storage] board reset to mock data');
+  }, []);
 
   const selectedTask =
     board.tasks.find((task) => task.id === selectedTaskId) ?? null;
@@ -167,12 +214,57 @@ function BoardPage() {
     logDrag('start', node);
   }, []);
 
+  // Dropping a card into a different phase region or swimlane reassigns its
+  // phase/owner data (decided 2026-07-14; see roadmap open question 2).
   const onNodeDragStop: OnNodeDrag = useCallback((_event, node) => {
     logDrag('end', node);
+    if (node.type !== 'task') return;
+    const width = node.measured?.width ?? 210;
+    const height = node.measured?.height ?? 110;
+    const centerX = node.position.x + width / 2;
+    const centerY = node.position.y + height / 2;
+    setBoard((prev) => {
+      const task = prev.tasks.find((t) => t.id === node.id);
+      if (!task) return prev;
+      const phase = prev.phases.find(
+        (p) => centerX >= p.x && centerX < p.x + p.width,
+      );
+      const lane = prev.swimlanes.find(
+        (l) => centerY >= l.y && centerY < l.y + l.height,
+      );
+      const phaseId = phase?.id ?? task.phaseId;
+      const ownerId = lane?.id ?? task.ownerId;
+      if (phaseId === task.phaseId && ownerId === task.ownerId) return prev;
+      const phaseLabel =
+        prev.phases.find((p) => p.id === phaseId)?.label ?? phaseId;
+      const laneLabel =
+        prev.swimlanes.find((l) => l.id === ownerId)?.label ?? ownerId;
+      console.log(`[drag] "${task.title}" reassigned to ${phaseLabel} / ${laneLabel}`);
+      return {
+        ...prev,
+        tasks: prev.tasks.map((t) =>
+          t.id === task.id
+            ? {
+                ...t,
+                phaseId,
+                ownerId,
+                activity: [
+                  ...t.activity,
+                  {
+                    id: `${t.id}-a${Date.now()}`,
+                    timestamp: new Date().toISOString(),
+                    message: `Moved to ${phaseLabel} / ${laneLabel}`,
+                  },
+                ],
+              }
+            : t,
+        ),
+      };
+    });
   }, []);
 
   useEffect(() => {
-    console.log('[data] mock board loaded', board);
+    console.log('[data] board loaded', board);
     console.log(
       `[data] ${board.tasks.length} tasks across ${board.phases.length} phases and ${board.swimlanes.length} swimlanes`,
     );
@@ -236,12 +328,15 @@ function BoardPage() {
         accentColor: laneById[task.ownerId]?.color ?? '#ffffff',
         ownerLabel: laneById[task.ownerId]?.label ?? task.ownerId,
         phaseLabel: phaseById[task.phaseId]?.label ?? '',
+        dimmed:
+          (statusFilter !== 'all' && task.status !== statusFilter) ||
+          (categoryFilter !== 'all' && task.category !== categoryFilter),
       },
       draggable: true,
     }));
 
     return [...phaseNodes, ...laneNodes, ...taskNodes];
-  }, [board]);
+  }, [board, statusFilter, categoryFilter]);
 
   return (
     <div className={styles.boardPage}>
@@ -252,6 +347,27 @@ function BoardPage() {
           {MOCK_EMPLOYEE.startDate} · Step {MOCK_EMPLOYEE.currentStep}
         </span>
         <div className={styles.headerActions}>
+          <div className={styles.filters}>
+            <Select
+              aria-label="Filter by status"
+              options={STATUS_FILTER_OPTIONS}
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(event.target.value as TaskStatus | 'all')
+              }
+            />
+            <Select
+              aria-label="Filter by category"
+              options={CATEGORY_FILTER_OPTIONS}
+              value={categoryFilter}
+              onChange={(event) =>
+                setCategoryFilter(event.target.value as TaskCategory | 'all')
+              }
+            />
+          </div>
+          <Button variant="ghost" size="sm" onClick={resetBoard}>
+            Reset Data
+          </Button>
           <Button variant="primary" size="sm" onClick={createTask}>
             + New Card
           </Button>
@@ -276,6 +392,7 @@ function BoardPage() {
             size={1.5}
             color="#d5d8e0"
           />
+          <Controls showInteractive={false} />
         </ReactFlow>
       </div>
       {selectedTask && (
