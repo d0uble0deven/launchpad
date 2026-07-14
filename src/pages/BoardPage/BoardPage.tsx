@@ -34,6 +34,16 @@ function BoardPage() {
 
   const closeModal = useCallback(() => setSelectedTaskId(null), []);
 
+  const saveTask = useCallback((updated: TaskCardData) => {
+    console.log(`[save] "${updated.title}"`, updated);
+    setBoard((prev) => ({
+      ...prev,
+      tasks: prev.tasks.map((task) =>
+        task.id === updated.id ? updated : task,
+      ),
+    }));
+  }, []);
+
   // Board state is the source of truth: React Flow position changes are
   // written straight back into the tasks, so cards follow the cursor and the
   // board always holds current positions (persisted in Step 1.11).
@@ -174,7 +184,12 @@ function BoardPage() {
         </ReactFlow>
       </div>
       {selectedTask && (
-        <TaskModal task={selectedTask} board={board} onClose={closeModal} />
+        <TaskModal
+          task={selectedTask}
+          board={board}
+          onClose={closeModal}
+          onSave={saveTask}
+        />
       )}
     </div>
   );
