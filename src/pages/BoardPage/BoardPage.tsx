@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Background, BackgroundVariant, ReactFlow } from '@xyflow/react';
-import type { Node, NodeChange, OnNodeDrag } from '@xyflow/react';
+import type { Node, NodeChange, NodeMouseHandler, OnNodeDrag } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import TaskModal from '../../components/organisms/TaskModal/TaskModal';
 import type { TaskCard as TaskCardData } from '../../types/board';
 import { buildMockBoard, MOCK_EMPLOYEE } from '../../data/mockBoard';
 import LaneNode from './LaneNode';
@@ -19,6 +20,19 @@ const CANVAS_MARGIN = 60;
 
 function BoardPage() {
   const [board, setBoard] = useState(buildMockBoard);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  const selectedTask =
+    board.tasks.find((task) => task.id === selectedTaskId) ?? null;
+
+  const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
+    if (node.type !== 'task') return;
+    const task = node.data.task as TaskCardData;
+    console.log(`[modal] open "${task.title}"`);
+    setSelectedTaskId(node.id);
+  }, []);
+
+  const closeModal = useCallback(() => setSelectedTaskId(null), []);
 
   // Board state is the source of truth: React Flow position changes are
   // written straight back into the tasks, so cards follow the cursor and the
@@ -144,6 +158,7 @@ function BoardPage() {
           edges={[]}
           nodeTypes={nodeTypes}
           onNodesChange={onNodesChange}
+          onNodeClick={onNodeClick}
           onNodeDragStart={onNodeDragStart}
           onNodeDragStop={onNodeDragStop}
           fitView
@@ -158,6 +173,9 @@ function BoardPage() {
           />
         </ReactFlow>
       </div>
+      {selectedTask && (
+        <TaskModal task={selectedTask} board={board} onClose={closeModal} />
+      )}
     </div>
   );
 }

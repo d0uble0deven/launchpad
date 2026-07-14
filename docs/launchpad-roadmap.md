@@ -197,7 +197,7 @@ Each step is small, verifiable, and ends with a stop for review.
 | 1.9 | Status actions + dependency recalculation — Mark Done/Blocked/N/A, blocked → ready propagation, logging | Mark prerequisite Done, dependent becomes Ready |
 | 1.10 | Create/delete/duplicate card | Perform all three in the UI |
 | 1.11 | localStorage persistence + reset-mock-data button | Edit/drag, refresh, changes remain |
-| 1.12 | Polish pass — visual hierarchy, filters if simple, fit-to-view/zoom controls | Usable as a functional prototype |
+| 1.12 | Polish pass — visual hierarchy, filters if simple, fit-to-view/zoom controls, dropping a card into a lane/phase region reassigns its owner/phase | Usable as a functional prototype |
 
 ---
 
@@ -337,9 +337,9 @@ external links + manual instructions on cards. Stop after each discovery step.
    Becca — the original spec listed New Hire, Hiring Supervisor, Sam / HR,
    Paras, Melissa, Justin, Project Lead, Buddy, Becca, Automation. Which set
    is canonical? (Current plan: follow the screenshots.)
-2. **Drag semantics:** when a card is dragged into a different phase region or
-   swimlane, should its phase/owner data update automatically, or is position
-   purely visual until edited in the modal?
+2. **Drag semantics — decided (2026-07-14):** dropping a card into a different
+   phase region or swimlane reassigns its phase/owner data. Implemented in
+   Step 1.12.
 3. **"Current step" (e.g., Step 38):** how is a hire's current step derived —
    task order in the Employee lane, count of completed tasks, or something
    else?
