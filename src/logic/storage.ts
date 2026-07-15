@@ -1,47 +1,54 @@
-import type { OnboardingBoard } from '../types/board';
+import type { AppState } from '../types/board';
 
 const STORAGE_KEY = 'launchpad.board';
 
-/** Bump when the board shape changes so stale saves are discarded. */
-const SCHEMA_VERSION = 1;
+/**
+ * Bump when the persisted shape changes so stale saves are discarded.
+ * v1: single OnboardingBoard (MVP 1). v2: AppState with employees + boards.
+ */
+const SCHEMA_VERSION = 2;
 
-type StoredBoard = {
+type StoredState = {
   version: number;
   savedAt: string;
-  board: OnboardingBoard;
+  state: AppState;
 };
 
-export function loadBoard(): OnboardingBoard | null {
+export function loadAppState(): AppState | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as StoredBoard;
-    if (parsed.version !== SCHEMA_VERSION || !Array.isArray(parsed.board?.tasks)) {
+    const parsed = JSON.parse(raw) as StoredState;
+    if (
+      parsed.version !== SCHEMA_VERSION ||
+      !Array.isArray(parsed.state?.employees) ||
+      !Array.isArray(parsed.state?.boards)
+    ) {
       console.warn(
-        `[storage] discarding saved board (schema v${parsed.version}, expected v${SCHEMA_VERSION})`,
+        `[storage] discarding saved data (schema v${parsed.version}, expected v${SCHEMA_VERSION})`,
       );
       return null;
     }
-    return parsed.board;
+    return parsed.state;
   } catch (error) {
-    console.warn('[storage] failed to load saved board', error);
+    console.warn('[storage] failed to load saved data', error);
     return null;
   }
 }
 
-export function saveBoard(board: OnboardingBoard): void {
+export function saveAppState(state: AppState): void {
   try {
-    const stored: StoredBoard = {
+    const stored: StoredState = {
       version: SCHEMA_VERSION,
       savedAt: new Date().toISOString(),
-      board,
+      state,
     };
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
   } catch (error) {
-    console.warn('[storage] failed to save board', error);
+    console.warn('[storage] failed to save data', error);
   }
 }
 
-export function clearBoard(): void {
+export function clearAppState(): void {
   localStorage.removeItem(STORAGE_KEY);
 }

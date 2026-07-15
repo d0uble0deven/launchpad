@@ -45,7 +45,16 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--color-text-muted);
+  text-decoration: none;
   cursor: default;
+}
+
+a.navItem {
+  cursor: pointer;
+}
+
+a.navItem:hover {
+  color: var(--color-text);
 }
 
 .navItemActive {

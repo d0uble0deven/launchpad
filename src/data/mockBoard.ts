@@ -13,9 +13,8 @@ export const MOCK_EMPLOYEE: Employee = {
   role: 'Frontend Engineer',
   location: 'Boise, Idaho',
   startDate: '2026-07-06',
-  supervisor: 'Hiring Supervisor',
-  projectLead: 'Project Lead',
-  currentStep: 38,
+  supervisor: 'Miguel A.',
+  projectLead: 'Sam W.',
 };
 
 // Phase regions run left to right; the first two happen before the start

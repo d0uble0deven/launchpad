@@ -1,44 +1,51 @@
-import { useState } from 'react';
+import { BrowserRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import styles from './App.module.css';
 import ComponentGallery from './dev/ComponentGallery';
 import BoardPage from './pages/BoardPage/BoardPage';
-
-type Tab = 'board' | 'test';
+import DashboardPage from './pages/DashboardPage/DashboardPage';
+import NewHirePage from './pages/NewHirePage/NewHirePage';
+import { AppStateProvider } from './state/AppStateContext';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<Tab>('board');
-
-  const navButton = (tab: Tab, label: string) => (
-    <button
-      type="button"
-      className={`${styles.navItem} ${activeTab === tab ? styles.navItemActive : ''}`}
-      onClick={() => setActiveTab(tab)}
-    >
-      {label}
-    </button>
-  );
+  const navClass = ({ isActive }: { isActive: boolean }) =>
+    `${styles.navItem} ${isActive ? styles.navItemActive : ''}`;
 
   return (
-    <div className={styles.app}>
-      <header className={styles.header}>
-        <div className={styles.brand}>
-          <span className={styles.logo} aria-hidden="true">
-            🚀
-          </span>
-          <span className={styles.wordmark}>LaunchPad</span>
-        </div>
-        <nav className={styles.nav} aria-label="Main navigation">
-          {navButton('board', 'Board')}
-          <span className={styles.navItem}>Dashboard</span>
-          <span className={styles.navItem}>New Hire</span>
-          {navButton('test', 'Test Page')}
-        </nav>
-      </header>
+    <BrowserRouter>
+      <AppStateProvider>
+        <div className={styles.app}>
+          <header className={styles.header}>
+            <div className={styles.brand}>
+              <span className={styles.logo} aria-hidden="true">
+                🚀
+              </span>
+              <span className={styles.wordmark}>LaunchPad</span>
+            </div>
+            <nav className={styles.nav} aria-label="Main navigation">
+              <NavLink to="/" end className={navClass}>
+                Dashboard
+              </NavLink>
+              <NavLink to="/new-hire" className={navClass}>
+                New Hire
+              </NavLink>
+              <NavLink to="/test" className={navClass}>
+                Test Page
+              </NavLink>
+            </nav>
+          </header>
 
-      <main className={styles.page}>
-        {activeTab === 'test' ? <ComponentGallery /> : <BoardPage />}
-      </main>
-    </div>
+          <main className={styles.page}>
+            <Routes>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/new-hire" element={<NewHirePage />} />
+              <Route path="/board/:employeeId" element={<BoardPage />} />
+              <Route path="/test" element={<ComponentGallery />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </main>
+        </div>
+      </AppStateProvider>
+    </BrowserRouter>
   );
 }
 

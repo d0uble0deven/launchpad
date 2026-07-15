@@ -27,3 +27,12 @@
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
+
+.selectError {
+  border-color: #dc2626;
+}
+
+.error {
+  font-size: 11px;
+  color: #dc2626;
+}

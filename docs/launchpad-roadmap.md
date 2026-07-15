@@ -1,7 +1,8 @@
 # LaunchPad — Product Roadmap
 
-**Status:** Planning / MVP 1 in progress
-**Last updated:** 2026-07-14
+**Status:** MVP 1 (Mural Board), MVP 2 (Dashboard), and MVP 3 (New Hire page)
+complete; MVP 4 (Template Builder) next
+**Last updated:** 2026-07-15
 
 ---
 
@@ -340,9 +341,9 @@ external links + manual instructions on cards. Stop after each discovery step.
 2. **Drag semantics — decided (2026-07-14):** dropping a card into a different
    phase region or swimlane reassigns its phase/owner data. Implemented in
    Step 1.12.
-3. **"Current step" (e.g., Step 38):** how is a hire's current step derived —
-   task order in the Employee lane, count of completed tasks, or something
-   else?
+3. **"Current step" — decided (2026-07-15):** derived as completed task count
+   + 1 (N/A tasks excluded), clamped when finished. Implemented in
+   `src/logic/progress.ts` for both the dashboard and the board header.
 4. **Phase region widths:** match the real Mural's variable widths (First Day
    is wide), or normalize for readability?
 5. **Buddy program:** "Identify Buddy & Notify Buddy of Partnership" exists as

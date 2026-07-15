@@ -38,6 +38,8 @@ export const CATEGORY_LABELS: Record<TaskCategory, string> = {
   automation: 'Automation',
 };
 
+export type EmployeeType = 'w2' | '1099';
+
 export type Employee = {
   id: string;
   name: string;
@@ -49,6 +51,17 @@ export type Employee = {
   projectLead?: string;
   /** Mocked "current step" indicator, e.g. 38. */
   currentStep?: number;
+  // Intake fields collected by the New Hire form (MVP 3).
+  projectName?: string;
+  employeeType?: EmployeeType;
+  personalEmail?: string;
+  laptopPreference?: string;
+  employeeGroup?: string;
+  vaProject?: boolean;
+  needsPiv?: boolean;
+  needsGfe?: boolean;
+  directReports?: string;
+  jobDescription?: string;
 };
 
 /**
@@ -115,4 +128,10 @@ export type OnboardingBoard = {
   phases: BoardPhase[];
   swimlanes: BoardSwimlane[];
   tasks: TaskCard[];
+};
+
+/** Everything LaunchPad persists: all hires and their boards. */
+export type AppState = {
+  employees: Employee[];
+  boards: OnboardingBoard[];
 };

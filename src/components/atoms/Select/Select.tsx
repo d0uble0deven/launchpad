@@ -10,9 +10,10 @@ export type SelectOption = {
 type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
   label?: string;
   options: SelectOption[];
+  error?: string;
 };
 
-function Select({ label, options, className, ...rest }: SelectProps) {
+function Select({ label, options, error, className, ...rest }: SelectProps) {
   const id = useId();
   return (
     <div className={styles.field}>
@@ -23,7 +24,10 @@ function Select({ label, options, className, ...rest }: SelectProps) {
       )}
       <select
         id={id}
-        className={[styles.select, className].filter(Boolean).join(' ')}
+        className={[styles.select, error ? styles.selectError : '', className]
+          .filter(Boolean)
+          .join(' ')}
+        aria-invalid={error ? true : undefined}
         {...rest}
       >
         {options.map((option) => (
@@ -32,6 +36,7 @@ function Select({ label, options, className, ...rest }: SelectProps) {
           </option>
         ))}
       </select>
+      {error && <span className={styles.error}>{error}</span>}
     </div>
   );
 }

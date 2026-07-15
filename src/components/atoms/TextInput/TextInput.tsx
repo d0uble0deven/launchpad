@@ -4,9 +4,10 @@ import styles from './TextInput.module.css';
 
 type TextInputProps = InputHTMLAttributes<HTMLInputElement> & {
   label?: string;
+  error?: string;
 };
 
-function TextInput({ label, className, ...rest }: TextInputProps) {
+function TextInput({ label, error, className, ...rest }: TextInputProps) {
   const id = useId();
   return (
     <div className={styles.field}>
@@ -17,9 +18,13 @@ function TextInput({ label, className, ...rest }: TextInputProps) {
       )}
       <input
         id={id}
-        className={[styles.input, className].filter(Boolean).join(' ')}
+        className={[styles.input, error ? styles.inputError : '', className]
+          .filter(Boolean)
+          .join(' ')}
+        aria-invalid={error ? true : undefined}
         {...rest}
       />
+      {error && <span className={styles.error}>{error}</span>}
     </div>
   );
 }

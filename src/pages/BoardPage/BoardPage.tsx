@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import { Background, BackgroundVariant, Controls, ReactFlow } from '@xyflow/react';
 import type { Node, NodeChange, NodeMouseHandler, OnNodeDrag } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -6,7 +7,8 @@ import Button from '../../components/atoms/Button/Button';
 import Select from '../../components/atoms/Select/Select';
 import TaskModal from '../../components/organisms/TaskModal/TaskModal';
 import { recalculateDependencies } from '../../logic/dependencies';
-import { clearBoard, loadBoard, saveBoard } from '../../logic/storage';
+import { summarizeBoard } from '../../logic/progress';
+import { useAppState } from '../../state/AppStateContext';
 import type {
   OnboardingBoard,
   TaskCard as TaskCardData,
@@ -14,7 +16,6 @@ import type {
   TaskStatus,
 } from '../../types/board';
 import { CATEGORY_LABELS, STATUS_LABELS } from '../../types/board';
-import { buildMockBoard, MOCK_EMPLOYEE } from '../../data/mockBoard';
 import LaneNode from './LaneNode';
 import PhaseRegionNode from './PhaseRegionNode';
 import TaskNode from './TaskNode';
@@ -43,36 +44,39 @@ const CATEGORY_FILTER_OPTIONS = [
 ];
 
 function BoardPage() {
-  const [board, setBoard] = useState<OnboardingBoard>(() => {
-    const saved = loadBoard();
-    if (saved) {
-      console.log('[storage] loaded saved board from localStorage');
-      return saved;
-    }
-    console.log('[storage] no saved board — using mock data');
-    return buildMockBoard();
-  });
+  const { employeeId } = useParams<{ employeeId: string }>();
+  const { state, updateBoard, resetAll } = useAppState();
+
+  const employee = state.employees.find((e) => e.id === employeeId) ?? null;
+  const board =
+    state.boards.find((b) => b.employeeId === employeeId) ?? null;
+
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
   const [categoryFilter, setCategoryFilter] = useState<TaskCategory | 'all'>(
     'all',
   );
 
-  // Persist every board change (debounced so drag ticks don't thrash).
-  useEffect(() => {
-    const timer = setTimeout(() => saveBoard(board), 300);
-    return () => clearTimeout(timer);
-  }, [board]);
+  const boardId = board?.id ?? null;
+  const setBoard = useCallback(
+    (updater: (prev: OnboardingBoard) => OnboardingBoard) => {
+      if (boardId) updateBoard(boardId, updater);
+    },
+    [boardId, updateBoard],
+  );
 
-  const resetBoard = useCallback(() => {
-    clearBoard();
-    setBoard(buildMockBoard());
-    setSelectedTaskId(null);
-    console.log('[storage] board reset to mock data');
-  }, []);
+  useEffect(() => {
+    if (!board || !employee) return;
+    console.log(`[data] board loaded for ${employee.name}`, board);
+    console.log(
+      `[data] ${board.tasks.length} tasks across ${board.phases.length} phases and ${board.swimlanes.length} swimlanes`,
+    );
+    // Log once per employee; drags update state continuously.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [employeeId]);
 
   const selectedTask =
-    board.tasks.find((task) => task.id === selectedTaskId) ?? null;
+    board?.tasks.find((task) => task.id === selectedTaskId) ?? null;
 
   const onNodeClick: NodeMouseHandler = useCallback((_event, node) => {
     if (node.type !== 'task') return;
@@ -83,7 +87,9 @@ function BoardPage() {
 
   const closeModal = useCallback(() => setSelectedTaskId(null), []);
 
-  const logDependencyChanges = (changes: { title: string; from: string; to: string }[]) => {
+  const logDependencyChanges = (
+    changes: { title: string; from: string; to: string }[],
+  ) => {
     if (changes.length === 0) {
       console.log('[deps] recalculated — no changes');
     }
@@ -93,6 +99,7 @@ function BoardPage() {
   };
 
   const createTask = useCallback(() => {
+    if (!board) return;
     const phase = board.phases[0]!;
     const lane = board.swimlanes[0]!;
     const task: TaskCardData = {
@@ -115,14 +122,16 @@ function BoardPage() {
       ],
       position: { x: phase.x + 20, y: lane.y + 24 },
     };
-    console.log(`[card] created "${task.title}" in ${phase.label} / ${lane.label}`);
+    console.log(
+      `[card] created "${task.title}" in ${phase.label} / ${lane.label}`,
+    );
     setBoard((prev) => ({ ...prev, tasks: [...prev.tasks, task] }));
     setSelectedTaskId(task.id);
-  }, [board]);
+  }, [board, setBoard]);
 
   const deleteTask = useCallback(
     (id: string) => {
-      const target = board.tasks.find((task) => task.id === id);
+      const target = board?.tasks.find((task) => task.id === id);
       if (!target) return;
       console.log(`[card] deleted "${target.title}"`);
       setBoard((prev) => {
@@ -139,12 +148,12 @@ function BoardPage() {
       });
       setSelectedTaskId(null);
     },
-    [board],
+    [board, setBoard],
   );
 
   const duplicateTask = useCallback(
     (id: string) => {
-      const source = board.tasks.find((task) => task.id === id);
+      const source = board?.tasks.find((task) => task.id === id);
       if (!source) return;
       const copy: TaskCardData = {
         ...structuredClone(source),
@@ -166,41 +175,47 @@ function BoardPage() {
       setBoard((prev) => ({ ...prev, tasks: [...prev.tasks, copy] }));
       setSelectedTaskId(copy.id);
     },
-    [board],
+    [board, setBoard],
   );
 
-  const saveTask = useCallback((updated: TaskCardData) => {
-    console.log(`[save] "${updated.title}"`, updated);
-    setBoard((prev) => {
-      const merged = prev.tasks.map((task) =>
-        task.id === updated.id ? updated : task,
-      );
-      const { tasks, changes } = recalculateDependencies(merged);
-      logDependencyChanges(changes);
-      return { ...prev, tasks };
-    });
-  }, []);
+  const saveTask = useCallback(
+    (updated: TaskCardData) => {
+      console.log(`[save] "${updated.title}"`, updated);
+      setBoard((prev) => {
+        const merged = prev.tasks.map((task) =>
+          task.id === updated.id ? updated : task,
+        );
+        const { tasks, changes } = recalculateDependencies(merged);
+        logDependencyChanges(changes);
+        return { ...prev, tasks };
+      });
+    },
+    [setBoard],
+  );
 
   // Board state is the source of truth: React Flow position changes are
   // written straight back into the tasks, so cards follow the cursor and the
-  // board always holds current positions (persisted in Step 1.11).
-  const onNodesChange = useCallback((changes: NodeChange[]) => {
-    const moves = new Map<string, { x: number; y: number }>();
-    for (const change of changes) {
-      if (change.type === 'position' && change.position) {
-        moves.set(change.id, change.position);
+  // board always holds current positions.
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      const moves = new Map<string, { x: number; y: number }>();
+      for (const change of changes) {
+        if (change.type === 'position' && change.position) {
+          moves.set(change.id, change.position);
+        }
       }
-    }
-    if (moves.size === 0) return;
-    setBoard((prev) => ({
-      ...prev,
-      tasks: prev.tasks.map((task) =>
-        moves.has(task.id)
-          ? { ...task, position: moves.get(task.id)! }
-          : task,
-      ),
-    }));
-  }, []);
+      if (moves.size === 0) return;
+      setBoard((prev) => ({
+        ...prev,
+        tasks: prev.tasks.map((task) =>
+          moves.has(task.id)
+            ? { ...task, position: moves.get(task.id)! }
+            : task,
+        ),
+      }));
+    },
+    [setBoard],
+  );
 
   const logDrag = (phase: 'start' | 'end', node: Node) => {
     if (node.type !== 'task') return;
@@ -216,63 +231,60 @@ function BoardPage() {
 
   // Dropping a card into a different phase region or swimlane reassigns its
   // phase/owner data (decided 2026-07-14; see roadmap open question 2).
-  const onNodeDragStop: OnNodeDrag = useCallback((_event, node) => {
-    logDrag('end', node);
-    if (node.type !== 'task') return;
-    const width = node.measured?.width ?? 210;
-    const height = node.measured?.height ?? 110;
-    const centerX = node.position.x + width / 2;
-    const centerY = node.position.y + height / 2;
-    setBoard((prev) => {
-      const task = prev.tasks.find((t) => t.id === node.id);
-      if (!task) return prev;
-      const phase = prev.phases.find(
-        (p) => centerX >= p.x && centerX < p.x + p.width,
-      );
-      const lane = prev.swimlanes.find(
-        (l) => centerY >= l.y && centerY < l.y + l.height,
-      );
-      const phaseId = phase?.id ?? task.phaseId;
-      const ownerId = lane?.id ?? task.ownerId;
-      if (phaseId === task.phaseId && ownerId === task.ownerId) return prev;
-      const phaseLabel =
-        prev.phases.find((p) => p.id === phaseId)?.label ?? phaseId;
-      const laneLabel =
-        prev.swimlanes.find((l) => l.id === ownerId)?.label ?? ownerId;
-      console.log(`[drag] "${task.title}" reassigned to ${phaseLabel} / ${laneLabel}`);
-      return {
-        ...prev,
-        tasks: prev.tasks.map((t) =>
-          t.id === task.id
-            ? {
-                ...t,
-                phaseId,
-                ownerId,
-                activity: [
-                  ...t.activity,
-                  {
-                    id: `${t.id}-a${Date.now()}`,
-                    timestamp: new Date().toISOString(),
-                    message: `Moved to ${phaseLabel} / ${laneLabel}`,
-                  },
-                ],
-              }
-            : t,
-        ),
-      };
-    });
-  }, []);
-
-  useEffect(() => {
-    console.log('[data] board loaded', board);
-    console.log(
-      `[data] ${board.tasks.length} tasks across ${board.phases.length} phases and ${board.swimlanes.length} swimlanes`,
-    );
-    // Log the initial board once on mount; drags update state continuously.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const onNodeDragStop: OnNodeDrag = useCallback(
+    (_event, node) => {
+      logDrag('end', node);
+      if (node.type !== 'task') return;
+      const width = node.measured?.width ?? 210;
+      const height = node.measured?.height ?? 110;
+      const centerX = node.position.x + width / 2;
+      const centerY = node.position.y + height / 2;
+      setBoard((prev) => {
+        const task = prev.tasks.find((t) => t.id === node.id);
+        if (!task) return prev;
+        const phase = prev.phases.find(
+          (p) => centerX >= p.x && centerX < p.x + p.width,
+        );
+        const lane = prev.swimlanes.find(
+          (l) => centerY >= l.y && centerY < l.y + l.height,
+        );
+        const phaseId = phase?.id ?? task.phaseId;
+        const ownerId = lane?.id ?? task.ownerId;
+        if (phaseId === task.phaseId && ownerId === task.ownerId) return prev;
+        const phaseLabel =
+          prev.phases.find((p) => p.id === phaseId)?.label ?? phaseId;
+        const laneLabel =
+          prev.swimlanes.find((l) => l.id === ownerId)?.label ?? ownerId;
+        console.log(
+          `[drag] "${task.title}" reassigned to ${phaseLabel} / ${laneLabel}`,
+        );
+        return {
+          ...prev,
+          tasks: prev.tasks.map((t) =>
+            t.id === task.id
+              ? {
+                  ...t,
+                  phaseId,
+                  ownerId,
+                  activity: [
+                    ...t.activity,
+                    {
+                      id: `${t.id}-a${Date.now()}`,
+                      timestamp: new Date().toISOString(),
+                      message: `Moved to ${phaseLabel} / ${laneLabel}`,
+                    },
+                  ],
+                }
+              : t,
+          ),
+        };
+      });
+    },
+    [setBoard],
+  );
 
   const nodes: Node[] = useMemo(() => {
+    if (!board) return [];
     const lastPhase = board.phases[board.phases.length - 1]!;
     const lastLane = board.swimlanes[board.swimlanes.length - 1]!;
     const canvasWidth = lastPhase.x + lastPhase.width + CANVAS_MARGIN;
@@ -338,13 +350,28 @@ function BoardPage() {
     return [...phaseNodes, ...laneNodes, ...taskNodes];
   }, [board, statusFilter, categoryFilter]);
 
+  if (!employee || !board) {
+    return (
+      <div className={styles.notFound}>
+        <p>No onboarding board found for this employee.</p>
+        <Link to="/">← Back to dashboard</Link>
+      </div>
+    );
+  }
+
+  const summary = summarizeBoard(employee, board);
+
   return (
     <div className={styles.boardPage}>
       <div className={styles.boardHeader}>
-        <span className={styles.employeeName}>{MOCK_EMPLOYEE.name}</span>
+        <Link to="/" className={styles.backLink}>
+          ← Dashboard
+        </Link>
+        <span className={styles.employeeName}>{employee.name}</span>
         <span className={styles.employeeMeta}>
-          {MOCK_EMPLOYEE.role} · {MOCK_EMPLOYEE.location} · Started{' '}
-          {MOCK_EMPLOYEE.startDate} · Step {MOCK_EMPLOYEE.currentStep}
+          {employee.role} · {employee.location} · Started {employee.startDate}{' '}
+          · Step {summary.currentStep} of {summary.totalCount} ·{' '}
+          {summary.overallPct}% complete
         </span>
         <div className={styles.headerActions}>
           <div className={styles.filters}>
@@ -365,7 +392,7 @@ function BoardPage() {
               }
             />
           </div>
-          <Button variant="ghost" size="sm" onClick={resetBoard}>
+          <Button variant="ghost" size="sm" onClick={resetAll}>
             Reset Data
           </Button>
           <Button variant="primary" size="sm" onClick={createTask}>
@@ -375,6 +402,7 @@ function BoardPage() {
       </div>
       <div className={styles.canvas}>
         <ReactFlow
+          key={board.id}
           nodes={nodes}
           edges={[]}
           nodeTypes={nodeTypes}
