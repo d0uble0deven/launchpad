@@ -20,6 +20,25 @@ export const READABLE_ZOOM = 0.85;
 /** Zoom for centering a whole phase column while keeping cards legible. */
 export const PHASE_ZOOM = 0.55;
 
+// ---- Semantic zoom ----
+
+/**
+ * Below OVERVIEW_MAX_ZOOM cards render as colored tiles (overview map);
+ * between the two, as compact cards; above COMPACT_MAX_ZOOM, as full cards.
+ * READABLE_ZOOM (0.85) lands in full mode, PHASE_ZOOM (0.55) in compact,
+ * and Fit Board (~0.1–0.2) in overview.
+ */
+export const OVERVIEW_MAX_ZOOM = 0.45;
+export const COMPACT_MAX_ZOOM = 0.75;
+
+export type BoardZoomMode = 'overview' | 'compact' | 'full';
+
+export function getZoomMode(zoom: number): BoardZoomMode {
+  if (zoom < OVERVIEW_MAX_ZOOM) return 'overview';
+  if (zoom < COMPACT_MAX_ZOOM) return 'compact';
+  return 'full';
+}
+
 /** Task card dimensions on the canvas (see TaskCard.module.css). */
 const CARD_WIDTH = 210;
 const CARD_HEIGHT = 110;

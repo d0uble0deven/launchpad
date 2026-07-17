@@ -13,6 +13,7 @@ import type {
   NodeMouseHandler,
   OnNodeDrag,
   ReactFlowInstance,
+  Viewport,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import Button from '../../components/atoms/Button/Button';
@@ -20,12 +21,13 @@ import Select from '../../components/atoms/Select/Select';
 import TaskModal from '../../components/organisms/TaskModal/TaskModal';
 import {
   getInitialViewportTarget,
+  getZoomMode,
   phaseCenter,
   PHASE_ZOOM,
   READABLE_ZOOM,
   taskCenter,
 } from '../../logic/boardNavigation';
-import type { ViewportTarget } from '../../logic/boardNavigation';
+import type { BoardZoomMode, ViewportTarget } from '../../logic/boardNavigation';
 import {
   getCurrentBlocker,
   getNextActionableTask,
@@ -88,6 +90,7 @@ function BoardPage() {
     'all',
   );
   const [navHint, setNavHint] = useState<string | null>(null);
+  const [zoomMode, setZoomMode] = useState<BoardZoomMode>('full');
 
   const [searchParams] = useSearchParams();
   const linkedTaskId = searchParams.get('task');
@@ -95,6 +98,25 @@ function BoardPage() {
   const instanceRef = useRef<ReactFlowInstance | null>(null);
   const centeredBoardRef = useRef<string | null>(null);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+
+  // Semantic zoom: keep --board-zoom current (CSS counter-scaling for
+  // overview labels, no React re-render) and switch the mode only when a
+  // threshold is crossed — so nothing re-renders or logs per zoom frame.
+  const applyZoom = useCallback((zoom: number) => {
+    canvasRef.current?.style.setProperty('--board-zoom', zoom.toFixed(4));
+    const mode = getZoomMode(zoom);
+    setZoomMode((prev) => {
+      if (prev === mode) return prev;
+      console.log(`LaunchPad zoom mode changed: ${mode}`);
+      return mode;
+    });
+  }, []);
+
+  const onMove = useCallback(
+    (_event: unknown, viewport: Viewport) => applyZoom(viewport.zoom),
+    [applyZoom],
+  );
 
   useEffect(() => {
     return () => {
@@ -168,11 +190,12 @@ function BoardPage() {
       const target = getInitialViewportTarget(board, employee, linkedTaskId);
       console.log(`LaunchPad initial viewport target: ${target.reason}`);
       centerOnTarget(target);
+      applyZoom('task' in target ? READABLE_ZOOM : PHASE_ZOOM);
       if (target.kind === 'linked-task') {
         setSelectedTaskId(target.task.id);
       }
     },
-    [board, employee, linkedTaskId, centerOnTarget],
+    [board, employee, linkedTaskId, centerOnTarget, applyZoom],
   );
 
   const goToCurrentStep = useCallback(() => {
@@ -397,6 +420,12 @@ function BoardPage() {
     [board, boardId, persistTask],
   );
 
+  // The current step gets the clearest glow in overview/compact modes.
+  const currentStepTaskId = useMemo(
+    () => (board ? (getNextActionableTask(board)?.id ?? null) : null),
+    [board],
+  );
+
   const nodes: Node[] = useMemo(() => {
     if (!board) return [];
     const lastPhase = board.phases[board.phases.length - 1]!;
@@ -420,6 +449,7 @@ function BoardPage() {
         width: phase.width,
         height: canvasHeight,
         striped: index % 2 === 1,
+        zoomMode,
       },
       draggable: false,
       selectable: false,
@@ -437,6 +467,7 @@ function BoardPage() {
         color: lane.color,
         width: canvasWidth,
         height: lane.height,
+        zoomMode,
       },
       draggable: false,
       selectable: false,
@@ -457,12 +488,14 @@ function BoardPage() {
         dimmed:
           (statusFilter !== 'all' && task.status !== statusFilter) ||
           (categoryFilter !== 'all' && task.category !== categoryFilter),
+        zoomMode,
+        isCurrentStep: task.id === currentStepTaskId,
       },
       draggable: true,
     }));
 
     return [...phaseNodes, ...laneNodes, ...taskNodes];
-  }, [board, statusFilter, categoryFilter]);
+  }, [board, statusFilter, categoryFilter, zoomMode, currentStepTaskId]);
 
   if (!employee || !board) {
     return (
@@ -526,13 +559,14 @@ function BoardPage() {
           </button>
         ))}
       </div>
-      <div className={styles.canvas}>
+      <div className={styles.canvas} ref={canvasRef}>
         <ReactFlow
           key={board.id}
           nodes={nodes}
           edges={[]}
           nodeTypes={nodeTypes}
           onInit={onInit}
+          onMove={onMove}
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
           onNodeDragStart={onNodeDragStart}
@@ -562,6 +596,30 @@ function BoardPage() {
             </Button>
             {navHint && <span className={styles.navHint}>{navHint}</span>}
           </Panel>
+          {zoomMode === 'overview' && (
+            <Panel position="bottom-right" className={styles.legend}>
+              <span className={styles.legendItem}>
+                <i className={styles.swatch} style={{ background: '#60a5fa' }} />
+                color = category
+              </span>
+              <span className={styles.legendItem}>
+                <i className={`${styles.swatch} ${styles.swatchMuted}`} />
+                done
+              </span>
+              <span className={styles.legendItem}>
+                <i className={`${styles.swatch} ${styles.swatchGlow}`} />
+                in progress
+              </span>
+              <span className={styles.legendItem}>
+                <i className={`${styles.swatch} ${styles.swatchBlocked}`} />
+                blocked
+              </span>
+              <span className={styles.legendItem}>
+                <i className={`${styles.swatch} ${styles.swatchNa}`} />
+                n/a
+              </span>
+            </Panel>
+          )}
         </ReactFlow>
       </div>
       {selectedTask && (

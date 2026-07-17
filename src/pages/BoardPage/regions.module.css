@@ -18,6 +18,13 @@
   white-space: nowrap;
 }
 
+/* Counter-scale so labels stay screen-readable at far zoom-out. The
+   --board-zoom variable is kept current by the board's onMove handler. */
+.phaseLabelOverview {
+  transform: translateX(-50%) scale(calc(1 / var(--board-zoom, 1)));
+  transform-origin: top center;
+}
+
 .lane {
   border-bottom: 1px solid #e3e5eb;
 }
@@ -36,4 +43,9 @@
   color: rgba(31, 36, 48, 0.8);
   box-shadow: var(--shadow-card);
   white-space: nowrap;
+}
+
+.laneLabelOverview {
+  transform: scale(calc(1 / var(--board-zoom, 1)));
+  transform-origin: top left;
 }

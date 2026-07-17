@@ -11,3 +11,159 @@
   opacity: 0;
   pointer-events: none;
 }
+
+/* ---- Overview tile mode ------------------------------------------------ */
+
+/* Same footprint as the full card so positions and drag feel identical. */
+.tile {
+  width: 210px;
+  height: 110px;
+  border-radius: 10px;
+  border: 1px solid rgba(31, 36, 48, 0.12);
+  position: relative;
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+
+/* Category base colors (stable hues; tile color = category). */
+.catIntake {
+  background: #a78bfa;
+}
+.catHrEmployment {
+  background: #f472b6;
+}
+.catCompliance {
+  background: #fb923c;
+}
+.catAccountAccess {
+  background: #60a5fa;
+}
+.catProjectTeamSetup {
+  background: #818cf8;
+}
+.catBuddyWelcome {
+  background: #4ade80;
+}
+.catNewHireFirstWeek {
+  background: #22d3ee;
+}
+.catReviewsFollowUp {
+  background: #fbbf24;
+}
+.catAutomation {
+  background: #facc15;
+}
+
+/* Status treatments (not color-only: opacity, outline, dash, glyphs). */
+
+.stNotStarted {
+  filter: saturate(0.45) brightness(1.12);
+  opacity: 0.8;
+}
+
+.stDone {
+  /* Muted and resolved — completed work should not shout. */
+  filter: saturate(0.25);
+  opacity: 0.45;
+}
+
+.stDone::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  font-weight: 700;
+  color: rgba(31, 36, 48, 0.35);
+}
+
+.stBlocked {
+  outline: 3px solid #dc2626;
+  outline-offset: 2px;
+}
+
+.tile.stBlocked::after {
+  content: '!';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44px;
+  font-weight: 800;
+  color: rgba(153, 27, 27, 0.55);
+}
+
+.stNa {
+  opacity: 0.25;
+  border: 2px dashed rgba(107, 114, 128, 0.8);
+  filter: saturate(0.3);
+}
+
+@keyframes amberGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
+  }
+  50% {
+    box-shadow: 0 0 24px 6px rgba(245, 158, 11, 0.55);
+  }
+}
+
+.stInProgress {
+  animation: amberGlow 3.2s ease-in-out infinite;
+}
+
+/* The current step glows clearest: stronger, slightly faster, outlined. */
+.currentStep {
+  outline: 2px solid #f59e0b;
+  outline-offset: 2px;
+  animation: amberGlow 2.4s ease-in-out infinite;
+}
+
+.stBlocked.currentStep {
+  /* Blocked wins the outline; keep the glow. */
+  outline-color: #dc2626;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stInProgress,
+  .currentStep {
+    animation: none;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.6);
+  }
+}
+
+/* ---- Compact card mode ------------------------------------------------- */
+
+.compactCard {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  width: 210px;
+  height: 110px;
+  padding: 10px 12px;
+  border: 1px solid rgba(31, 36, 48, 0.1);
+  border-radius: 10px;
+  box-shadow: var(--shadow-card);
+}
+
+.compactTitle {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--color-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.compactMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}
