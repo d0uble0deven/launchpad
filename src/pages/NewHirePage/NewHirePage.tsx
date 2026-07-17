@@ -101,7 +101,7 @@ function toEmployee(values: FormValues, id: string): Employee {
 }
 
 function NewHirePage() {
-  const { addHire } = useAppState();
+  const { state, addHire } = useAppState();
   const navigate = useNavigate();
   const [values, setValues] = useState<FormValues>(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -124,14 +124,14 @@ function NewHirePage() {
       { ...values, name: values.name || 'New Hire' },
       'preview',
     );
-    const { board, notes } = generateBoardForEmployee(draft);
+    const { board, notes } = generateBoardForEmployee(draft, state.template);
     const active = board.tasks.filter((task) => task.status !== 'na').length;
     const na = board.tasks.length - active;
     const ready = board.tasks.filter((task) => task.status === 'ready').length;
     return { total: board.tasks.length, active, na, ready, notes };
-  }, [values]);
+  }, [values, state.template]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const validation = validate(values);
     setErrors(validation);
     if (Object.keys(validation).length > 0) {
@@ -140,14 +140,14 @@ function NewHirePage() {
     }
     const id = `emp-${slugify(values.name)}-${Date.now().toString(36)}`;
     const employee = toEmployee(values, id);
-    const { board, notes } = generateBoardForEmployee(employee);
-    console.log(`[new-hire] created ${employee.name}`, employee);
-    console.log(
-      `[new-hire] generated board with ${board.tasks.length} tasks (${notes.length} auto-adjusted)`,
-      notes,
-    );
-    addHire(employee, board);
-    navigate(`/board/${employee.id}`);
+    try {
+      // The server generates the board from its stored template.
+      const created = await addHire(employee);
+      console.log(`[new-hire] created ${created.name}`, created);
+      navigate(`/board/${created.id}`);
+    } catch (err) {
+      console.error('[new-hire] failed to create hire', err);
+    }
   };
 
   return (
@@ -165,7 +165,7 @@ function NewHirePage() {
           className={styles.form}
           onSubmit={(event) => {
             event.preventDefault();
-            handleSubmit();
+            void handleSubmit();
           }}
           noValidate
         >

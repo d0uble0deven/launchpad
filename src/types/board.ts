@@ -130,8 +130,53 @@ export type OnboardingBoard = {
   tasks: TaskCard[];
 };
 
-/** Everything LaunchPad persists: all hires and their boards. */
+// ---- Template model (MVP 4) ----
+
+/** Employee attribute a conditional rule can test. */
+export type ConditionField = 'vaProject' | 'employeeType' | 'hasDirectReports';
+
+/**
+ * A conditional rule on a template task. The task only applies to a hire when
+ * the employee's `field` equals `value`; otherwise it's marked N/A on their
+ * generated board (mirrors the Mural's "(if applicable)" annotations).
+ */
+export type ConditionRule = {
+  id: string;
+  field: ConditionField;
+  value: string;
+};
+
+/** A reusable task definition in the onboarding template. */
+export type TemplateTask = {
+  id: string;
+  title: string;
+  description: string;
+  ownerId: string;
+  backupOwner?: string;
+  category: TaskCategory;
+  phaseId: string;
+  dueTiming?: string;
+  dependsOn: string[];
+  links: ResourceLink[];
+  /** Required vs. optional step. */
+  required: boolean;
+  /** Empty = always applies. */
+  conditions: ConditionRule[];
+  position: { x: number; y: number };
+};
+
+/** The reusable onboarding workflow that new-hire boards are generated from. */
+export type Template = {
+  id: string;
+  name: string;
+  phases: BoardPhase[];
+  swimlanes: BoardSwimlane[];
+  tasks: TemplateTask[];
+};
+
+/** Everything LaunchPad persists: the template, all hires, and their boards. */
 export type AppState = {
+  template: Template;
   employees: Employee[];
   boards: OnboardingBoard[];
 };

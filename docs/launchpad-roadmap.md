@@ -1,8 +1,10 @@
 # LaunchPad — Product Roadmap
 
-**Status:** MVP 1 (Mural Board), MVP 2 (Dashboard), and MVP 3 (New Hire page)
-complete; MVP 4 (Template Builder) next
-**Last updated:** 2026-07-15
+**Status:** MVPs 1–4 complete. MVP 5 core complete (Express + SQLite backend
+as source of truth, Slack notifications with allowlist/redirect safety rails,
+Mark Done/Blocked from Slack, reminders, notification history). Slack slash
+commands deferred to a follow-up. MVP 6 (external integrations) not started.
+**Last updated:** 2026-07-16
 
 ---
 

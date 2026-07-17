@@ -1,4 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { api } from '../../../api/client';
+import type { SlackNotification } from '../../../api/client';
+import Badge from '../../atoms/Badge/Badge';
 import Button from '../../atoms/Button/Button';
 import IconButton from '../../atoms/IconButton/IconButton';
 import Select from '../../atoms/Select/Select';
@@ -22,6 +25,17 @@ type TaskModalProps = {
   onSave: (task: TaskCard) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  onRemind: () => Promise<void>;
+};
+
+const NOTIFICATION_TONE: Record<
+  SlackNotification['mode'],
+  'success' | 'info' | 'neutral' | 'warning'
+> = {
+  sent: 'success',
+  redirected: 'info',
+  'dry-run': 'neutral',
+  skipped: 'warning',
 };
 
 const STATUS_OPTIONS = (
@@ -44,9 +58,38 @@ function TaskModal({
   onSave,
   onDelete,
   onDuplicate,
+  onRemind,
 }: TaskModalProps) {
   const [draft, setDraft] = useState<TaskCard>(() => structuredClone(task));
   const [deleteArmed, setDeleteArmed] = useState(false);
+  const [notifications, setNotifications] = useState<SlackNotification[]>([]);
+  const [reminding, setReminding] = useState(false);
+
+  const loadNotifications = useCallback(() => {
+    api
+      .listNotifications(board.id, task.id)
+      .then((res) => setNotifications(res.notifications))
+      .catch((err) =>
+        console.error('[api] failed to load Slack notifications', err),
+      );
+  }, [board.id, task.id]);
+
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  const handleRemind = async () => {
+    setReminding(true);
+    try {
+      await onRemind();
+      console.log(`[slack] reminder requested for "${task.title}"`);
+      loadNotifications();
+    } catch (err) {
+      console.error('[api] reminder failed', err);
+    } finally {
+      setReminding(false);
+    }
+  };
 
   const lane = board.swimlanes.find((l) => l.id === draft.ownerId);
   const phase = board.phases.find((p) => p.id === draft.phaseId);
@@ -214,6 +257,29 @@ function TaskModal({
             </section>
 
             <section className={styles.section}>
+              <h3 className={styles.sectionTitle}>Slack Notifications</h3>
+              {notifications.length === 0 ? (
+                <p className={styles.empty}>No Slack notifications yet.</p>
+              ) : (
+                <ul className={styles.activityList}>
+                  {notifications.map((n) => (
+                    <li key={n.id} className={styles.activityEntry}>
+                      <span className={styles.notificationRow}>
+                        <Badge tone={NOTIFICATION_TONE[n.mode]}>{n.mode}</Badge>
+                        <span className={styles.activityMessage}>
+                          To {n.intended_owner} — {n.reason}
+                        </span>
+                      </span>
+                      <span className={styles.activityTime}>
+                        {new Date(n.created_at).toLocaleString()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+
+            <section className={styles.section}>
               <h3 className={styles.sectionTitle}>Activity</h3>
               <ul className={styles.activityList}>
                 {draft.activity.map((entry) => (
@@ -335,6 +401,9 @@ function TaskModal({
               disabled={draft.status === 'na'}
             >
               Mark N/A
+            </Button>
+            <Button size="sm" onClick={handleRemind} disabled={reminding}>
+              {reminding ? 'Sending…' : 'Send Slack Reminder'}
             </Button>
             <Button size="sm" onClick={onDuplicate}>
               Duplicate

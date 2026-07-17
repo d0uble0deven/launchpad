@@ -1,6 +1,11 @@
-import { buildMockBoard } from '../data/mockBoard';
 import { recalculateDependencies } from './dependencies';
-import type { Employee, OnboardingBoard, TaskCard } from '../types/board';
+import type {
+  ConditionField,
+  Employee,
+  OnboardingBoard,
+  TaskCard,
+  Template,
+} from '../types/board';
 
 export type GenerationNote = {
   taskTitle: string;
@@ -8,32 +13,41 @@ export type GenerationNote = {
   reason: string;
 };
 
-/**
- * Simple conditional rules, mirroring the annotations on the real Mural
- * board ("if applicable", "W2's only"). Each rule marks a template task N/A
- * when it doesn't apply to this hire.
- */
-const CONDITIONAL_RULES: Array<{
-  taskIds: string[];
-  applies: (employee: Employee) => boolean;
-  reason: string;
-}> = [
-  {
-    taskIds: ['t-va-onboarding', 't-dsva-slack', 't-va-gh'],
-    applies: (employee) => employee.vaProject === true,
-    reason: 'Not on a VA project',
-  },
-  {
-    taskIds: ['t-all-hands-invites'],
-    applies: (employee) => employee.employeeType !== '1099',
-    reason: 'W2 employees only (hire is a 1099 contractor)',
-  },
-  {
-    taskIds: ['t-managers-training'],
-    applies: (employee) => Boolean(employee.directReports?.trim()),
-    reason: 'No direct reports',
-  },
-];
+const FIELD_LABEL: Record<ConditionField, string> = {
+  vaProject: 'VA project',
+  employeeType: 'Employee type',
+  hasDirectReports: 'Direct reports',
+};
+
+const VALUE_LABEL: Record<string, string> = {
+  yes: 'Yes',
+  no: 'No',
+  w2: 'W2 employee',
+  '1099': '1099 contractor',
+};
+
+/** The employee's value for a condition field, normalized to rule values. */
+function employeeFieldValue(employee: Employee, field: ConditionField): string {
+  switch (field) {
+    case 'vaProject':
+      return employee.vaProject ? 'yes' : 'no';
+    case 'employeeType':
+      return employee.employeeType ?? 'w2';
+    case 'hasDirectReports':
+      return employee.directReports?.trim() ? 'yes' : 'no';
+  }
+}
+
+export function describeConditions(
+  conditions: { field: ConditionField; value: string }[],
+): string {
+  return conditions
+    .map(
+      (rule) =>
+        `${FIELD_LABEL[rule.field]} is ${VALUE_LABEL[rule.value] ?? rule.value}`,
+    )
+    .join(' and ');
+}
 
 function intakeDescription(employee: Employee): string {
   const lines = [
@@ -61,60 +75,65 @@ function intakeDescription(employee: Employee): string {
 }
 
 /**
- * Generates a fresh onboarding board for a new hire from the default
- * template: all statuses reset, conditional tasks marked N/A, the intake
- * step auto-completed (the form itself is the intake), and dependency
- * statuses recalculated.
+ * Generates a fresh onboarding board for a new hire from the given template:
+ * template tasks become not-started board tasks, conditional tasks whose rules
+ * don't match the hire are marked N/A, the intake step is auto-completed (the
+ * form itself is the intake), and dependency statuses are recalculated.
  */
-export function generateBoardForEmployee(employee: Employee): {
-  board: OnboardingBoard;
-  notes: GenerationNote[];
-} {
-  const board = buildMockBoard();
-  board.id = `board-${employee.id}`;
-  board.employeeId = employee.id;
-
+export function generateBoardForEmployee(
+  employee: Employee,
+  template: Template,
+): { board: OnboardingBoard; notes: GenerationNote[] } {
   const notes: GenerationNote[] = [];
   const now = new Date().toISOString();
   const displayName = employee.preferredName || employee.name;
 
-  const naByTask = new Map<string, string>();
-  for (const rule of CONDITIONAL_RULES) {
-    if (!rule.applies(employee)) {
-      for (const id of rule.taskIds) naByTask.set(id, rule.reason);
-    }
-  }
-
-  board.tasks = board.tasks.map((template): TaskCard => {
+  const tasks: TaskCard[] = template.tasks.map((tmpl): TaskCard => {
     const task: TaskCard = {
-      ...template,
+      id: tmpl.id,
+      title: tmpl.title,
+      description: tmpl.description,
+      ownerId: tmpl.ownerId,
+      backupOwner: tmpl.backupOwner,
       status: 'not-started',
+      category: tmpl.category,
+      phaseId: tmpl.phaseId,
+      dueTiming: tmpl.dueTiming,
+      dependsOn: [...tmpl.dependsOn],
+      links: tmpl.links.map((link) => ({ ...link })),
       notes: '',
       activity: [
         {
-          id: `${template.id}-a1`,
+          id: `${tmpl.id}-a1`,
           timestamp: now,
           message: `Board generated for ${displayName}`,
         },
       ],
+      position: { ...tmpl.position },
     };
 
-    const naReason = naByTask.get(task.id);
-    if (naReason) {
-      task.status = 'na';
-      task.activity.push({
-        id: `${task.id}-a2`,
-        timestamp: now,
-        message: `Marked N/A — ${naReason}`,
-      });
-      notes.push({ taskTitle: task.title, action: 'marked N/A', reason: naReason });
+    // Conditional rules: if any rule doesn't match this hire, mark N/A.
+    if (tmpl.conditions.length > 0) {
+      const matches = tmpl.conditions.every(
+        (rule) => employeeFieldValue(employee, rule.field) === rule.value,
+      );
+      if (!matches) {
+        const reason = `Only applies when ${describeConditions(tmpl.conditions)}`;
+        task.status = 'na';
+        task.activity.push({
+          id: `${task.id}-a2`,
+          timestamp: now,
+          message: `Marked N/A — ${reason}`,
+        });
+        notes.push({ taskTitle: task.title, action: 'marked N/A', reason });
+      }
     }
 
     if (task.id === 't-intake') {
       task.status = 'done';
       task.description = intakeDescription(employee);
       task.activity.push({
-        id: `${task.id}-a2`,
+        id: `${task.id}-a3`,
         timestamp: now,
         message: 'Completed automatically — intake collected by the New Hire form',
       });
@@ -139,7 +158,13 @@ export function generateBoardForEmployee(employee: Employee): {
     return task;
   });
 
-  const { tasks } = recalculateDependencies(board.tasks);
-  board.tasks = tasks;
+  const board: OnboardingBoard = {
+    id: `board-${employee.id}`,
+    employeeId: employee.id,
+    phases: structuredClone(template.phases),
+    swimlanes: structuredClone(template.swimlanes),
+    tasks: recalculateDependencies(tasks).tasks,
+  };
+
   return { board, notes };
 }

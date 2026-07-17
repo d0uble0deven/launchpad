@@ -4,6 +4,7 @@ import ComponentGallery from './dev/ComponentGallery';
 import BoardPage from './pages/BoardPage/BoardPage';
 import DashboardPage from './pages/DashboardPage/DashboardPage';
 import NewHirePage from './pages/NewHirePage/NewHirePage';
+import TemplateBuilderPage from './pages/TemplateBuilderPage/TemplateBuilderPage';
 import { AppStateProvider } from './state/AppStateContext';
 
 function App() {
@@ -28,6 +29,9 @@ function App() {
               <NavLink to="/new-hire" className={navClass}>
                 New Hire
               </NavLink>
+              <NavLink to="/template" className={navClass}>
+                Template
+              </NavLink>
               <NavLink to="/test" className={navClass}>
                 Test Page
               </NavLink>
@@ -38,6 +42,7 @@ function App() {
             <Routes>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/new-hire" element={<NewHirePage />} />
+              <Route path="/template" element={<TemplateBuilderPage />} />
               <Route path="/board/:employeeId" element={<BoardPage />} />
               <Route path="/test" element={<ComponentGallery />} />
               <Route path="*" element={<Navigate to="/" replace />} />

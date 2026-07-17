@@ -6,7 +6,6 @@ import '@xyflow/react/dist/style.css';
 import Button from '../../components/atoms/Button/Button';
 import Select from '../../components/atoms/Select/Select';
 import TaskModal from '../../components/organisms/TaskModal/TaskModal';
-import { recalculateDependencies } from '../../logic/dependencies';
 import { summarizeBoard } from '../../logic/progress';
 import { useAppState } from '../../state/AppStateContext';
 import type {
@@ -45,7 +44,15 @@ const CATEGORY_FILTER_OPTIONS = [
 
 function BoardPage() {
   const { employeeId } = useParams<{ employeeId: string }>();
-  const { state, updateBoard, resetAll } = useAppState();
+  const {
+    state,
+    updateBoardLocal,
+    persistTask,
+    createTask: apiCreateTask,
+    removeTask,
+    remindTask,
+    resetAll,
+  } = useAppState();
 
   const employee = state.employees.find((e) => e.id === employeeId) ?? null;
   const board =
@@ -58,11 +65,12 @@ function BoardPage() {
   );
 
   const boardId = board?.id ?? null;
-  const setBoard = useCallback(
+  // Local-only updates for drag ticks; persistence happens on drag stop.
+  const setBoardLocal = useCallback(
     (updater: (prev: OnboardingBoard) => OnboardingBoard) => {
-      if (boardId) updateBoard(boardId, updater);
+      if (boardId) updateBoardLocal(boardId, updater);
     },
-    [boardId, updateBoard],
+    [boardId, updateBoardLocal],
   );
 
   useEffect(() => {
@@ -86,17 +94,6 @@ function BoardPage() {
   }, []);
 
   const closeModal = useCallback(() => setSelectedTaskId(null), []);
-
-  const logDependencyChanges = (
-    changes: { title: string; from: string; to: string }[],
-  ) => {
-    if (changes.length === 0) {
-      console.log('[deps] recalculated — no changes');
-    }
-    for (const change of changes) {
-      console.log(`[deps] "${change.title}": ${change.from} → ${change.to}`);
-    }
-  };
 
   const createTask = useCallback(() => {
     if (!board) return;
@@ -125,30 +122,19 @@ function BoardPage() {
     console.log(
       `[card] created "${task.title}" in ${phase.label} / ${lane.label}`,
     );
-    setBoard((prev) => ({ ...prev, tasks: [...prev.tasks, task] }));
+    void apiCreateTask(board.id, task);
     setSelectedTaskId(task.id);
-  }, [board, setBoard]);
+  }, [board, apiCreateTask]);
 
   const deleteTask = useCallback(
     (id: string) => {
       const target = board?.tasks.find((task) => task.id === id);
-      if (!target) return;
+      if (!target || !boardId) return;
       console.log(`[card] deleted "${target.title}"`);
-      setBoard((prev) => {
-        const remaining = prev.tasks
-          .filter((task) => task.id !== id)
-          .map((task) =>
-            task.dependsOn.includes(id)
-              ? { ...task, dependsOn: task.dependsOn.filter((d) => d !== id) }
-              : task,
-          );
-        const { tasks, changes } = recalculateDependencies(remaining);
-        logDependencyChanges(changes);
-        return { ...prev, tasks };
-      });
+      void removeTask(boardId, id);
       setSelectedTaskId(null);
     },
-    [board, setBoard],
+    [board, boardId, removeTask],
   );
 
   const duplicateTask = useCallback(
@@ -172,30 +158,21 @@ function BoardPage() {
         ],
       };
       console.log(`[card] duplicated "${source.title}" → "${copy.title}"`);
-      setBoard((prev) => ({ ...prev, tasks: [...prev.tasks, copy] }));
+      void apiCreateTask(board!.id, copy);
       setSelectedTaskId(copy.id);
     },
-    [board, setBoard],
+    [board, apiCreateTask],
   );
 
   const saveTask = useCallback(
     (updated: TaskCardData) => {
-      console.log(`[save] "${updated.title}"`, updated);
-      setBoard((prev) => {
-        const merged = prev.tasks.map((task) =>
-          task.id === updated.id ? updated : task,
-        );
-        const { tasks, changes } = recalculateDependencies(merged);
-        logDependencyChanges(changes);
-        return { ...prev, tasks };
-      });
+      if (boardId) void persistTask(boardId, updated);
     },
-    [setBoard],
+    [boardId, persistTask],
   );
 
-  // Board state is the source of truth: React Flow position changes are
-  // written straight back into the tasks, so cards follow the cursor and the
-  // board always holds current positions.
+  // Drag ticks update local state only, so cards follow the cursor without
+  // hammering the API; the final position is persisted on drag stop.
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
       const moves = new Map<string, { x: number; y: number }>();
@@ -205,7 +182,7 @@ function BoardPage() {
         }
       }
       if (moves.size === 0) return;
-      setBoard((prev) => ({
+      setBoardLocal((prev) => ({
         ...prev,
         tasks: prev.tasks.map((task) =>
           moves.has(task.id)
@@ -214,7 +191,7 @@ function BoardPage() {
         ),
       }));
     },
-    [setBoard],
+    [setBoardLocal],
   );
 
   const logDrag = (phase: 'start' | 'end', node: Node) => {
@@ -230,57 +207,56 @@ function BoardPage() {
   }, []);
 
   // Dropping a card into a different phase region or swimlane reassigns its
-  // phase/owner data (decided 2026-07-14; see roadmap open question 2).
+  // phase/owner data; the final position (and any reassignment) is persisted
+  // to the server in one PATCH.
   const onNodeDragStop: OnNodeDrag = useCallback(
     (_event, node) => {
       logDrag('end', node);
-      if (node.type !== 'task') return;
+      if (node.type !== 'task' || !board || !boardId) return;
+      const task = board.tasks.find((t) => t.id === node.id);
+      if (!task) return;
+
       const width = node.measured?.width ?? 210;
       const height = node.measured?.height ?? 110;
       const centerX = node.position.x + width / 2;
       const centerY = node.position.y + height / 2;
-      setBoard((prev) => {
-        const task = prev.tasks.find((t) => t.id === node.id);
-        if (!task) return prev;
-        const phase = prev.phases.find(
-          (p) => centerX >= p.x && centerX < p.x + p.width,
-        );
-        const lane = prev.swimlanes.find(
-          (l) => centerY >= l.y && centerY < l.y + l.height,
-        );
-        const phaseId = phase?.id ?? task.phaseId;
-        const ownerId = lane?.id ?? task.ownerId;
-        if (phaseId === task.phaseId && ownerId === task.ownerId) return prev;
+      const phase = board.phases.find(
+        (p) => centerX >= p.x && centerX < p.x + p.width,
+      );
+      const lane = board.swimlanes.find(
+        (l) => centerY >= l.y && centerY < l.y + l.height,
+      );
+      const phaseId = phase?.id ?? task.phaseId;
+      const ownerId = lane?.id ?? task.ownerId;
+      const reassigned =
+        phaseId !== task.phaseId || ownerId !== task.ownerId;
+
+      let updated: TaskCardData = { ...task, position: { ...node.position } };
+      if (reassigned) {
         const phaseLabel =
-          prev.phases.find((p) => p.id === phaseId)?.label ?? phaseId;
+          board.phases.find((p) => p.id === phaseId)?.label ?? phaseId;
         const laneLabel =
-          prev.swimlanes.find((l) => l.id === ownerId)?.label ?? ownerId;
+          board.swimlanes.find((l) => l.id === ownerId)?.label ?? ownerId;
         console.log(
           `[drag] "${task.title}" reassigned to ${phaseLabel} / ${laneLabel}`,
         );
-        return {
-          ...prev,
-          tasks: prev.tasks.map((t) =>
-            t.id === task.id
-              ? {
-                  ...t,
-                  phaseId,
-                  ownerId,
-                  activity: [
-                    ...t.activity,
-                    {
-                      id: `${t.id}-a${Date.now()}`,
-                      timestamp: new Date().toISOString(),
-                      message: `Moved to ${phaseLabel} / ${laneLabel}`,
-                    },
-                  ],
-                }
-              : t,
-          ),
+        updated = {
+          ...updated,
+          phaseId,
+          ownerId,
+          activity: [
+            ...updated.activity,
+            {
+              id: `${task.id}-a${Date.now()}`,
+              timestamp: new Date().toISOString(),
+              message: `Moved to ${phaseLabel} / ${laneLabel}`,
+            },
+          ],
         };
-      });
+      }
+      void persistTask(boardId, updated);
     },
-    [setBoard],
+    [board, boardId, persistTask],
   );
 
   const nodes: Node[] = useMemo(() => {
@@ -432,6 +408,7 @@ function BoardPage() {
           onSave={saveTask}
           onDelete={() => deleteTask(selectedTask.id)}
           onDuplicate={() => duplicateTask(selectedTask.id)}
+          onRemind={() => remindTask(board.id, selectedTask.id)}
         />
       )}
     </div>
