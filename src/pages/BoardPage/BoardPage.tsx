@@ -1,12 +1,36 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { Background, BackgroundVariant, Controls, ReactFlow } from '@xyflow/react';
-import type { Node, NodeChange, NodeMouseHandler, OnNodeDrag } from '@xyflow/react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
+import {
+  Background,
+  BackgroundVariant,
+  Controls,
+  Panel,
+  ReactFlow,
+} from '@xyflow/react';
+import type {
+  Node,
+  NodeChange,
+  NodeMouseHandler,
+  OnNodeDrag,
+  ReactFlowInstance,
+} from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import Button from '../../components/atoms/Button/Button';
 import Select from '../../components/atoms/Select/Select';
 import TaskModal from '../../components/organisms/TaskModal/TaskModal';
-import { summarizeBoard } from '../../logic/progress';
+import {
+  getInitialViewportTarget,
+  phaseCenter,
+  PHASE_ZOOM,
+  READABLE_ZOOM,
+  taskCenter,
+} from '../../logic/boardNavigation';
+import type { ViewportTarget } from '../../logic/boardNavigation';
+import {
+  getCurrentBlocker,
+  getNextActionableTask,
+  summarizeBoard,
+} from '../../logic/progress';
 import { useAppState } from '../../state/AppStateContext';
 import type {
   OnboardingBoard,
@@ -63,6 +87,26 @@ function BoardPage() {
   const [categoryFilter, setCategoryFilter] = useState<TaskCategory | 'all'>(
     'all',
   );
+  const [navHint, setNavHint] = useState<string | null>(null);
+
+  const [searchParams] = useSearchParams();
+  const linkedTaskId = searchParams.get('task');
+
+  const instanceRef = useRef<ReactFlowInstance | null>(null);
+  const centeredBoardRef = useRef<string | null>(null);
+  const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    };
+  }, []);
+
+  const showHint = useCallback((message: string) => {
+    setNavHint(message);
+    if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = setTimeout(() => setNavHint(null), 2500);
+  }, []);
 
   const boardId = board?.id ?? null;
   // Local-only updates for drag ticks; persistence happens on drag stop.
@@ -94,6 +138,100 @@ function BoardPage() {
   }, []);
 
   const closeModal = useCallback(() => setSelectedTaskId(null), []);
+
+  // ---- Smart viewport & navigation ----
+
+  const centerOnTarget = useCallback(
+    (target: ViewportTarget, duration = 0) => {
+      const instance = instanceRef.current;
+      if (!instance || !board) return;
+      if ('task' in target) {
+        const { x, y } = taskCenter(target.task);
+        void instance.setCenter(x, y, { zoom: READABLE_ZOOM, duration });
+      } else {
+        const { x, y } = phaseCenter(board, target.phase);
+        void instance.setCenter(x, y, { zoom: PHASE_ZOOM, duration });
+      }
+    },
+    [board],
+  );
+
+  // Fires once per board mount (ReactFlow is keyed by board id). The
+  // viewport is uncontrolled, so nothing re-centers afterwards unless the
+  // user clicks a navigation control.
+  const onInit = useCallback(
+    (instance: ReactFlowInstance) => {
+      instanceRef.current = instance;
+      if (!board || !employee) return;
+      if (centeredBoardRef.current === board.id) return;
+      centeredBoardRef.current = board.id;
+      const target = getInitialViewportTarget(board, employee, linkedTaskId);
+      console.log(`LaunchPad initial viewport target: ${target.reason}`);
+      centerOnTarget(target);
+      if (target.kind === 'linked-task') {
+        setSelectedTaskId(target.task.id);
+      }
+    },
+    [board, employee, linkedTaskId, centerOnTarget],
+  );
+
+  const goToCurrentStep = useCallback(() => {
+    if (!board) return;
+    const task = getNextActionableTask(board);
+    if (!task) {
+      console.log('LaunchPad nav: no current step — all tasks complete');
+      showHint('All tasks complete 🎉');
+      return;
+    }
+    const { x, y } = taskCenter(task);
+    void instanceRef.current?.setCenter(x, y, {
+      zoom: READABLE_ZOOM,
+      duration: 300,
+    });
+    console.log(`Centered on current step — "${task.title}"`);
+  }, [board, showHint]);
+
+  const goToBlocker = useCallback(() => {
+    if (!board || !employee) return;
+    const blocker = getCurrentBlocker(board, employee);
+    if (!blocker) {
+      console.log('LaunchPad nav: no current blocker');
+      showHint('No current blocker');
+      return;
+    }
+    const { x, y } = taskCenter(blocker);
+    void instanceRef.current?.setCenter(x, y, {
+      zoom: READABLE_ZOOM,
+      duration: 300,
+    });
+    console.log(`Centered on blocker — "${blocker.title}"`);
+  }, [board, employee, showHint]);
+
+  const fitBoard = useCallback(() => {
+    void instanceRef.current?.fitView({ padding: 0.1, duration: 300 });
+    console.log('Fit full board');
+  }, []);
+
+  const resetSmartView = useCallback(() => {
+    if (!board || !employee) return;
+    const target = getInitialViewportTarget(board, employee, linkedTaskId);
+    centerOnTarget(target, 300);
+    console.log(`Reset to smart view — ${target.reason}`);
+  }, [board, employee, linkedTaskId, centerOnTarget]);
+
+  const jumpToPhase = useCallback(
+    (phaseId: string) => {
+      const phase = board?.phases.find((p) => p.id === phaseId);
+      if (!board || !phase) return;
+      const { x, y } = phaseCenter(board, phase);
+      void instanceRef.current?.setCenter(x, y, {
+        zoom: PHASE_ZOOM,
+        duration: 300,
+      });
+      console.log(`Centered on phase "${phase.label}"`);
+    },
+    [board],
+  );
 
   const createTask = useCallback(() => {
     if (!board) return;
@@ -376,17 +514,29 @@ function BoardPage() {
           </Button>
         </div>
       </div>
+      <div className={styles.phaseBar} role="group" aria-label="Jump to phase">
+        {board.phases.map((phase) => (
+          <button
+            key={phase.id}
+            type="button"
+            className={styles.phaseJump}
+            onClick={() => jumpToPhase(phase.id)}
+          >
+            {phase.label}
+          </button>
+        ))}
+      </div>
       <div className={styles.canvas}>
         <ReactFlow
           key={board.id}
           nodes={nodes}
           edges={[]}
           nodeTypes={nodeTypes}
+          onInit={onInit}
           onNodesChange={onNodesChange}
           onNodeClick={onNodeClick}
           onNodeDragStart={onNodeDragStart}
           onNodeDragStop={onNodeDragStop}
-          fitView
           minZoom={0.08}
           maxZoom={1.75}
         >
@@ -397,6 +547,21 @@ function BoardPage() {
             color="#d5d8e0"
           />
           <Controls showInteractive={false} />
+          <Panel position="top-left" className={styles.navPanel}>
+            <Button size="sm" onClick={goToCurrentStep}>
+              Go to Current Step
+            </Button>
+            <Button size="sm" onClick={goToBlocker}>
+              Go to Blocker
+            </Button>
+            <Button size="sm" onClick={fitBoard}>
+              Fit Board
+            </Button>
+            <Button size="sm" variant="ghost" onClick={resetSmartView}>
+              Reset View
+            </Button>
+            {navHint && <span className={styles.navHint}>{navHint}</span>}
+          </Panel>
         </ReactFlow>
       </div>
       {selectedTask && (

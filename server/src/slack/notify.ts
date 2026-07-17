@@ -89,7 +89,7 @@ function buildBlocks(ctx: MessageContext): unknown[] {
         {
           type: 'button',
           text: { type: 'plain_text', text: 'Open Task' },
-          url: `${config.appBaseUrl}/board/${ctx.employee.id}`,
+          url: `${config.appBaseUrl}/board/${ctx.employee.id}?task=${ctx.task.id}`,
           action_id: 'lp_open_task',
         },
         {

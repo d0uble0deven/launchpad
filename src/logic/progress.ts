@@ -56,6 +56,75 @@ function isSatisfied(task: TaskCard): boolean {
   return task.status === 'done' || task.status === 'na';
 }
 
+// ---- Shared helpers (used by the dashboard summary and board navigation) ----
+
+export function getDaysSinceStart(
+  employee: Employee,
+  today: Date = new Date(),
+): number {
+  return Math.floor(
+    (today.getTime() - new Date(employee.startDate).getTime()) / 86_400_000,
+  );
+}
+
+/** Index of the first phase whose time window hasn't closed yet. */
+export function getCurrentPhaseIndex(daysSinceStart: number): number {
+  const idx = PHASE_END_DAYS.findIndex((end) => daysSinceStart <= end);
+  return idx === -1 ? PHASE_END_DAYS.length - 1 : idx;
+}
+
+/**
+ * Tasks in chronological (phase) order — "first" means earliest in time.
+ * Within a phase, ties break by canvas position (left-to-right, then top-to-
+ * bottom), matching how a human reads the board; storage order isn't stable.
+ */
+export function orderTasksByPhase(board: OnboardingBoard): TaskCard[] {
+  const phaseIndex = Object.fromEntries(
+    board.phases.map((phase, index) => [phase.id, index]),
+  );
+  return [...board.tasks].sort((a, b) => {
+    const phaseDiff =
+      (phaseIndex[a.phaseId] ?? Infinity) - (phaseIndex[b.phaseId] ?? Infinity);
+    if (phaseDiff !== 0) return phaseDiff;
+    return a.position.x - b.position.x || a.position.y - b.position.y;
+  });
+}
+
+/**
+ * The first blocked task whose phase is already current or past — a blocked
+ * 90-day review shouldn't count as a blocker for a week-one hire.
+ */
+export function getCurrentBlocker(
+  board: OnboardingBoard,
+  employee: Employee,
+  today: Date = new Date(),
+): TaskCard | null {
+  const phaseIndex = Object.fromEntries(
+    board.phases.map((phase, index) => [phase.id, index]),
+  );
+  const currentPhaseIdx = getCurrentPhaseIndex(
+    getDaysSinceStart(employee, today),
+  );
+  return (
+    orderTasksByPhase(board).find(
+      (task) =>
+        task.status === 'blocked' &&
+        (phaseIndex[task.phaseId] ?? Infinity) <= currentPhaseIdx,
+    ) ?? null
+  );
+}
+
+/** First task that is actionable right now: in-progress → ready → not-started. */
+export function getNextActionableTask(board: OnboardingBoard): TaskCard | null {
+  const ordered = orderTasksByPhase(board);
+  return (
+    ordered.find((task) => task.status === 'in-progress') ??
+    ordered.find((task) => task.status === 'ready') ??
+    ordered.find((task) => task.status === 'not-started') ??
+    null
+  );
+}
+
 export function summarizeBoard(
   employee: Employee,
   board: OnboardingBoard,
@@ -72,17 +141,10 @@ export function summarizeBoard(
     PHASE_END_DAYS[phaseIdxOf(task)] ?? Infinity;
 
   // Chronological order for "first blocker" / "next owner" semantics.
-  const ordered = [...board.tasks].sort((a, b) => phaseIdxOf(a) - phaseIdxOf(b));
+  const ordered = orderTasksByPhase(board);
 
-  const daysSinceStart = Math.floor(
-    (today.getTime() - new Date(employee.startDate).getTime()) / 86_400_000,
-  );
+  const daysSinceStart = getDaysSinceStart(employee, today);
   const startingSoon = daysSinceStart < 0;
-
-  // "Current" phase: the first phase whose window hasn't closed yet.
-  const currentPhaseIdx = PHASE_END_DAYS.findIndex(
-    (end) => daysSinceStart <= end,
-  );
 
   const countable = ordered.filter((task) => task.status !== 'na');
   const doneCount = countable.filter((task) => task.status === 'done').length;
@@ -96,16 +158,11 @@ export function summarizeBoard(
 
   // Only count a blocker if its phase is already current or past — a blocked
   // 90-day review shouldn't flag a hire who started last week.
-  const relevantBlocked = ordered.filter(
-    (task) => task.status === 'blocked' && phaseIdxOf(task) <= currentPhaseIdx,
-  );
-  const currentBlocker = relevantBlocked[0]?.title ?? null;
+  const currentBlockerTask = getCurrentBlocker(board, employee, today);
+  const currentBlocker = currentBlockerTask?.title ?? null;
 
   // Next owner: whoever holds the first task that is actionable right now.
-  const nextTask =
-    ordered.find((task) => task.status === 'in-progress') ??
-    ordered.find((task) => task.status === 'ready') ??
-    ordered.find((task) => task.status === 'not-started');
+  const nextTask = getNextActionableTask(board);
   const nextOwnerId = nextTask?.ownerId ?? null;
   const nextOwner = nextOwnerId ? (laneLabel[nextOwnerId] ?? nextOwnerId) : null;
 
@@ -163,7 +220,7 @@ export function summarizeBoard(
     byCategory,
     flags: {
       active: !completed && !startingSoon,
-      blocked: relevantBlocked.length > 0,
+      blocked: currentBlockerTask !== null,
       overdue: overdueCount > 0,
       startingSoon,
       waitingOnLeadership:
