@@ -7,5 +7,5 @@ npm-debug.log*
 # Secrets — never commit
 .env
 
-# SQLite database
-data/
+# SQLite database (root data/ only — src/data/ holds source code)
+/data/

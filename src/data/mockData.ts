@@ -1,4 +1,5 @@
 import { buildMockBoard, MOCK_EMPLOYEE } from './mockBoard';
+import { buildDefaultTemplate } from './defaultTemplate';
 import { recalculateDependencies } from '../logic/dependencies';
 import type {
   AppState,
@@ -99,6 +100,7 @@ function buildBoardFor(employee: Employee, profile?: Profile): OnboardingBoard {
 
 export function buildMockData(): AppState {
   return {
+    template: buildDefaultTemplate(),
     employees: structuredClone(MOCK_EMPLOYEES),
     boards: [
       // Marissa keeps the handcrafted template statuses.
