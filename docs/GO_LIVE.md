@@ -71,3 +71,9 @@ restart. No code changes required for the rollout itself.
 - **`.env`**: gitignored; contains live tokens. Never commit it.
 - **Channels**: nothing posts to channels today. If a daily digest is added
   later, that's the moment the integration becomes visible — add it last.
+- **The `/launchpad` slash command**: once registered, it appears in the
+  workspace's `/` autocomplete for everyone (same as Watercooler's commands
+  — register quietly, don't announce). Two mitigations: every response is
+  **ephemeral** (only the invoker sees it), and while `SLACK_DM_ALLOWLIST`
+  is set, non-listed users who try it just get "LaunchPad is in private
+  testing."

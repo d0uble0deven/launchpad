@@ -30,6 +30,7 @@ history instead of being sent.
 
 - [docs/launchpad-roadmap.md](docs/launchpad-roadmap.md) — product roadmap and MVP status
 - [docs/SLACK_SETUP.md](docs/SLACK_SETUP.md) — creating the Slack app, tokens, owner mapping
+- [docs/SLACK_COMMANDS_MANUAL.md](docs/SLACK_COMMANDS_MANUAL.md) — every `/launchpad` command and what it does
 - [docs/GO_LIVE.md](docs/GO_LIVE.md) — the quiet rollout ladder (allowlist / redirect / dry-run)
 
 ## Scripts

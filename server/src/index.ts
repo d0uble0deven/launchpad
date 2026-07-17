@@ -3,6 +3,7 @@ import { config } from './env';
 import { routes } from './routes';
 import { registerActions } from './slack/actions';
 import { slackApp, startSlack } from './slack/bolt';
+import { registerSlashCommand } from './slack/commands';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -18,6 +19,7 @@ app.listen(config.port, () => {
 
 if (slackApp) {
   registerActions(slackApp);
+  registerSlashCommand(slackApp);
 }
 void startSlack().catch((error) => {
   console.error('[slack] failed to start', error);

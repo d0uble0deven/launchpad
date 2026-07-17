@@ -25,11 +25,17 @@ features:
   bot_user:
     display_name: LaunchPad
     always_online: true
+  slash_commands:
+    - command: /launchpad
+      description: LaunchPad onboarding shortcuts
+      usage_hint: help | my tasks | status <name> | blockers | open <name>
+      should_escape: false
 oauth_config:
   scopes:
     bot:
       - chat:write        # send DMs
       - im:write          # open DM conversations
+      - commands          # the /launchpad slash command
       - users:read        # resolve who clicked a button
       - users:read.email  # map owners to Slack accounts by email (go-live)
 settings:
@@ -88,6 +94,15 @@ Restart the server (`npm run server`). You should see:
 Then send yourself a test message: open any task in the web app → **Send
 Slack Reminder**. It should arrive as a DM from LaunchPad within a second or
 two, with working **Mark Done / Mark Blocked** buttons.
+
+Also try the slash command: `/launchpad help` in Slack — the reply is
+ephemeral (only you see it). While `SLACK_DM_ALLOWLIST` is set, anyone not
+on it gets "LaunchPad is in private testing." instead. See
+[SLACK_COMMANDS_MANUAL.md](SLACK_COMMANDS_MANUAL.md) for every command.
+
+> **If you added the slash command to an existing app:** manifest changes
+> require **Install App → Reinstall to Workspace** before `/launchpad`
+> appears.
 
 ## 5 — Production notes (later)
 

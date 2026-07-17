@@ -1,8 +1,9 @@
-import { Router } from 'express';
+import { Router, urlencoded } from 'express';
 import { buildMockData } from '../../src/data/mockData';
 import { generateBoardForEmployee } from '../../src/logic/generateBoard';
 import type { Employee, TaskCard, Template } from '../../src/types/board';
 import { replaceAllData } from './db';
+import { handleLaunchPadCommand } from './slack/commands/handlers';
 import * as store from './store';
 import { deleteTask, remindTask, upsertTask } from './taskService';
 
@@ -91,6 +92,22 @@ routes.put('/template', (req, res) => {
   }
   store.putTemplate(template);
   res.json({ template });
+});
+
+/**
+ * Dev-only test endpoint for the /launchpad command core, so the whole flow
+ * is curl-testable without a Slack app. Slack itself never calls this —
+ * real slash commands arrive over Bolt Socket Mode. No invoker gate here
+ * (the server is local); the gate applies to the real Slack path.
+ */
+routes.post('/slack/commands', urlencoded({ extended: true }), (req, res) => {
+  const body = req.body as Record<string, unknown>;
+  const response = handleLaunchPadCommand({
+    text: String(body.text ?? ''),
+    userId: String(body.user_id ?? ''),
+    userName: body.user_name ? String(body.user_name) : undefined,
+  });
+  res.json(response);
 });
 
 routes.post('/reset', (_req, res) => {
