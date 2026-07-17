@@ -1,3 +1,4 @@
+import './nodeFetchFix'; // Node 26 empty-body fetch hang — must load before any fetch/Slack call
 import express from 'express';
 import { config } from './env';
 import { routes } from './routes';
