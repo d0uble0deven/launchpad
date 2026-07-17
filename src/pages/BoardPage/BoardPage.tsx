@@ -231,7 +231,9 @@ function BoardPage() {
   }, [board, employee, showHint]);
 
   const fitBoard = useCallback(() => {
-    void instanceRef.current?.fitView({ padding: 0.1, duration: 300 });
+    // Extra padding leaves room for the counter-scaled lane chips that hang
+    // into the left gutter at overview zoom.
+    void instanceRef.current?.fitView({ padding: 0.15, duration: 300 });
     console.log('Fit full board');
   }, []);
 
@@ -598,25 +600,30 @@ function BoardPage() {
           </Panel>
           {zoomMode === 'overview' && (
             <Panel position="bottom-right" className={styles.legend}>
+              <span className={styles.legendTitle}>Map legend</span>
               <span className={styles.legendItem}>
-                <i className={styles.swatch} style={{ background: '#60a5fa' }} />
-                color = category
-              </span>
-              <span className={styles.legendItem}>
-                <i className={`${styles.swatch} ${styles.swatchMuted}`} />
-                done
+                <i className={styles.swatch} />
+                tile color = person (owner)
               </span>
               <span className={styles.legendItem}>
                 <i className={`${styles.swatch} ${styles.swatchGlow}`} />
-                in progress
+                in progress / current step
               </span>
               <span className={styles.legendItem}>
                 <i className={`${styles.swatch} ${styles.swatchBlocked}`} />
                 blocked
               </span>
               <span className={styles.legendItem}>
+                <i className={`${styles.swatch} ${styles.swatchMuted}`} />
+                done (muted ✓)
+              </span>
+              <span className={styles.legendItem}>
+                <i className={`${styles.swatch} ${styles.swatchPale}`} />
+                not started (pale)
+              </span>
+              <span className={styles.legendItem}>
                 <i className={`${styles.swatch} ${styles.swatchNa}`} />
-                n/a
+                n/a (dashed)
               </span>
             </Panel>
           )}

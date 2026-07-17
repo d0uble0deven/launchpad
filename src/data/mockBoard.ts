@@ -35,19 +35,20 @@ const PHASES: BoardPhase[] = [
 const LANE_TOP = 80;
 const LANE_HEIGHT = 170;
 
-// Lane order and colors follow the real Mural board.
+// Lane order follows the real Mural board. Each person gets a clearly
+// distinct hue (cards, tiles, and lane chips all inherit it).
 const LANE_DEFS: Array<Pick<BoardSwimlane, 'id' | 'label' | 'color'>> = [
-  { id: 'employee', label: 'Employee', color: '#fce7f3' },
-  { id: 'justin', label: 'Justin', color: '#99f6e4' },
-  { id: 'hiring-supervisor', label: 'Hiring Supervisor', color: '#ddd6fe' },
-  { id: 'paras', label: 'Paras', color: '#fbcfe8' },
-  { id: 'automation', label: 'Automation', color: '#fef08a' },
-  { id: 'jana', label: 'Jana', color: '#fecdd3' },
-  { id: 'melissa', label: 'Melissa', color: '#fdba74' },
-  { id: 'anupe', label: 'Anupe', color: '#bae6fd' },
-  { id: 'sheila', label: 'Sheila', color: '#ded9a6' },
-  { id: 'project-lead', label: 'Project Lead', color: '#93c5fd' },
-  { id: 'becca', label: 'Becca', color: '#f0abfc' },
+  { id: 'employee', label: 'Employee', color: '#f9a8d4' }, // pink
+  { id: 'justin', label: 'Justin', color: '#2dd4bf' }, // teal
+  { id: 'hiring-supervisor', label: 'Hiring Supervisor', color: '#a78bfa' }, // purple
+  { id: 'paras', label: 'Paras', color: '#f87171' }, // red
+  { id: 'automation', label: 'Automation', color: '#fcd34d' }, // yellow
+  { id: 'jana', label: 'Jana', color: '#a3e635' }, // lime
+  { id: 'melissa', label: 'Melissa', color: '#fb923c' }, // orange
+  { id: 'anupe', label: 'Anupe', color: '#38bdf8' }, // sky
+  { id: 'sheila', label: 'Sheila', color: '#4ade80' }, // green
+  { id: 'project-lead', label: 'Project Lead', color: '#818cf8' }, // indigo
+  { id: 'becca', label: 'Becca', color: '#e879f9' }, // fuchsia
 ];
 
 const SWIMLANES: BoardSwimlane[] = LANE_DEFS.map((lane, index) => ({

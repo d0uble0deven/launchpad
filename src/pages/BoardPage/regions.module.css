@@ -45,7 +45,13 @@
   white-space: nowrap;
 }
 
+/* At overview, anchor the chip's right edge at the board's left gutter
+   (x=230) and grow leftward into empty canvas — chips never cover tiles.
+   Smaller type keeps consecutive chips from overlapping vertically. */
 .laneLabelOverview {
-  transform: scale(calc(1 / var(--board-zoom, 1)));
-  transform-origin: top left;
+  left: 230px;
+  padding: 3px 9px;
+  font-size: 11px;
+  transform: translateX(-100%) scale(calc(1 / var(--board-zoom, 1)));
+  transform-origin: top right;
 }

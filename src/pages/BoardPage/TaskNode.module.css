@@ -14,43 +14,15 @@
 
 /* ---- Overview tile mode ------------------------------------------------ */
 
-/* Same footprint as the full card so positions and drag feel identical. */
+/* Smaller than the full-card footprint so tiles get breathing room between
+   neighbors at far zoom (tile color = owner, set inline). */
 .tile {
-  width: 210px;
-  height: 110px;
-  border-radius: 10px;
+  width: 180px;
+  height: 84px;
+  border-radius: 8px;
   border: 1px solid rgba(31, 36, 48, 0.12);
   position: relative;
   transition: opacity 0.15s ease, filter 0.15s ease;
-}
-
-/* Category base colors (stable hues; tile color = category). */
-.catIntake {
-  background: #a78bfa;
-}
-.catHrEmployment {
-  background: #f472b6;
-}
-.catCompliance {
-  background: #fb923c;
-}
-.catAccountAccess {
-  background: #60a5fa;
-}
-.catProjectTeamSetup {
-  background: #818cf8;
-}
-.catBuddyWelcome {
-  background: #4ade80;
-}
-.catNewHireFirstWeek {
-  background: #22d3ee;
-}
-.catReviewsFollowUp {
-  background: #fbbf24;
-}
-.catAutomation {
-  background: #facc15;
 }
 
 /* Status treatments (not color-only: opacity, outline, dash, glyphs). */

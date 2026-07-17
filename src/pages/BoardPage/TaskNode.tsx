@@ -6,7 +6,6 @@ import TaskCard from '../../components/molecules/TaskCard/TaskCard';
 import type { BoardZoomMode } from '../../logic/boardNavigation';
 import type {
   TaskCard as TaskCardData,
-  TaskCategory,
   TaskStatus,
 } from '../../types/board';
 import { STATUS_LABELS } from '../../types/board';
@@ -25,18 +24,6 @@ export type TaskNodeType = Node<
   'task'
 >;
 
-const CATEGORY_TILE_CLASS: Record<TaskCategory, string> = {
-  intake: styles.catIntake,
-  'hr-employment': styles.catHrEmployment,
-  compliance: styles.catCompliance,
-  'account-access': styles.catAccountAccess,
-  'project-team-setup': styles.catProjectTeamSetup,
-  'buddy-welcome': styles.catBuddyWelcome,
-  'new-hire-first-week': styles.catNewHireFirstWeek,
-  'reviews-follow-up': styles.catReviewsFollowUp,
-  automation: styles.catAutomation,
-};
-
 const STATUS_TILE_CLASS: Record<TaskStatus, string> = {
   'not-started': styles.stNotStarted,
   blocked: styles.stBlocked,
@@ -52,17 +39,18 @@ function TaskNode({ data }: NodeProps<TaskNodeType>) {
 
   let content: React.ReactNode;
   if (zoomMode === 'overview') {
-    // Tile mode: no text, category color + status treatment carries meaning.
+    // Tile mode: no text — owner color + status treatment carry the meaning
+    // (same person-color scheme as the full cards and lane chips).
     content = (
       <div
         className={[
           styles.tile,
-          CATEGORY_TILE_CLASS[task.category],
           STATUS_TILE_CLASS[task.status],
           isCurrentStep ? styles.currentStep : '',
         ]
           .filter(Boolean)
           .join(' ')}
+        style={{ background: data.accentColor }}
         title={tooltip}
       />
     );
