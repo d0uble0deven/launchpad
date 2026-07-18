@@ -172,7 +172,7 @@
 .sidebar {
   padding: 18px 20px 24px;
   border-left: 1px solid var(--color-border);
-  background: #fafbfc;
+  background: var(--color-bg);
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -228,7 +228,7 @@
   gap: 10px;
   padding: 14px 24px;
   border-top: 1px solid var(--color-border);
-  background: #fafbfc;
+  background: var(--color-bg);
   flex-shrink: 0;
   flex-wrap: wrap;
 }

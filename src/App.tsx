@@ -4,8 +4,10 @@ import ComponentGallery from './dev/ComponentGallery';
 import BoardPage from './pages/BoardPage/BoardPage';
 import DashboardPage from './pages/DashboardPage/DashboardPage';
 import NewHirePage from './pages/NewHirePage/NewHirePage';
+import SettingsPage from './pages/SettingsPage/SettingsPage';
 import TemplateBuilderPage from './pages/TemplateBuilderPage/TemplateBuilderPage';
 import { AppStateProvider } from './state/AppStateContext';
+import { ThemeProvider } from './state/ThemeContext';
 
 function App() {
   const navClass = ({ isActive }: { isActive: boolean }) =>
@@ -13,6 +15,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <ThemeProvider>
       <AppStateProvider>
         <div className={styles.app}>
           <header className={styles.header}>
@@ -35,6 +38,9 @@ function App() {
               <NavLink to="/test" className={navClass}>
                 Test Page
               </NavLink>
+              <NavLink to="/settings" className={navClass}>
+                Settings
+              </NavLink>
             </nav>
           </header>
 
@@ -45,11 +51,13 @@ function App() {
               <Route path="/template" element={<TemplateBuilderPage />} />
               <Route path="/board/:employeeId" element={<BoardPage />} />
               <Route path="/test" element={<ComponentGallery />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
         </div>
       </AppStateProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

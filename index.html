@@ -4,6 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>LaunchPad</title>
+    <script>
+      // Apply the saved theme before first paint so reloads don't flash the
+      // default colors (kept in sync by ThemeProvider).
+      try {
+        var savedTheme = localStorage.getItem('launchpad-theme');
+        if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
