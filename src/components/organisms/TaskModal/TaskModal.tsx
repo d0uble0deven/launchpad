@@ -380,14 +380,12 @@ function TaskModal({
         <footer className={styles.footer}>
           <div className={styles.footerActions}>
             <Button
-              size="sm"
               onClick={() => applyStatus('done')}
               disabled={draft.status === 'done'}
             >
               Mark Done
             </Button>
             <Button
-              size="sm"
               variant="danger"
               onClick={() => applyStatus('blocked')}
               disabled={draft.status === 'blocked'}
@@ -395,21 +393,17 @@ function TaskModal({
               Mark Blocked
             </Button>
             <Button
-              size="sm"
               variant="ghost"
               onClick={() => applyStatus('na')}
               disabled={draft.status === 'na'}
             >
               Mark N/A
             </Button>
-            <Button size="sm" onClick={handleRemind} disabled={reminding}>
+            <Button onClick={handleRemind} disabled={reminding}>
               {reminding ? 'Sending…' : 'Send Slack Reminder'}
             </Button>
-            <Button size="sm" onClick={onDuplicate}>
-              Duplicate
-            </Button>
+            <Button onClick={onDuplicate}>Duplicate</Button>
             <Button
-              size="sm"
               variant="danger"
               onClick={() => (deleteArmed ? onDelete() : setDeleteArmed(true))}
               onBlur={() => setDeleteArmed(false)}

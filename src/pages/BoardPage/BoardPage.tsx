@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
+  applyNodeChanges,
   Background,
   BackgroundVariant,
   Controls,
   Panel,
   ReactFlow,
+  ViewportPortal,
 } from '@xyflow/react';
 import type {
   Node,
@@ -54,6 +56,89 @@ const nodeTypes = {
 
 const CANVAS_MARGIN = 60;
 
+/**
+ * Build the full React Flow node array from board state. Runs only on
+ * discrete events (board sync, filter/zoom/focus changes) — drag ticks are
+ * handled by applyNodeChanges on node state and never touch this.
+ */
+function buildNodes(
+  board: OnboardingBoard,
+  statusFilter: TaskStatus | 'all',
+  categoryFilter: TaskCategory | 'all',
+  zoomMode: BoardZoomMode,
+  currentStepTaskId: string | null,
+  focusedTaskId: string | null,
+): Node[] {
+  const lastPhase = board.phases[board.phases.length - 1]!;
+  const lastLane = board.swimlanes[board.swimlanes.length - 1]!;
+  const canvasWidth = lastPhase.x + lastPhase.width + CANVAS_MARGIN;
+  const canvasHeight = lastLane.y + lastLane.height + CANVAS_MARGIN;
+
+  const laneById = Object.fromEntries(
+    board.swimlanes.map((lane) => [lane.id, lane]),
+  );
+  const phaseById = Object.fromEntries(
+    board.phases.map((phase) => [phase.id, phase]),
+  );
+
+  const phaseNodes: Node[] = board.phases.map((phase, index) => ({
+    id: `phase-${phase.id}`,
+    type: 'phaseRegion',
+    position: { x: phase.x, y: 0 },
+    data: {
+      label: phase.label,
+      width: phase.width,
+      height: canvasHeight,
+      striped: index % 2 === 1,
+      zoomMode,
+    },
+    draggable: false,
+    selectable: false,
+    focusable: false,
+    zIndex: -2,
+    style: { pointerEvents: 'none' },
+  }));
+
+  const laneNodes: Node[] = board.swimlanes.map((lane) => ({
+    id: `lane-${lane.id}`,
+    type: 'lane',
+    position: { x: 0, y: lane.y },
+    data: {
+      label: lane.label,
+      color: lane.color,
+      width: canvasWidth,
+      height: lane.height,
+      zoomMode,
+    },
+    draggable: false,
+    selectable: false,
+    focusable: false,
+    zIndex: -1,
+    style: { pointerEvents: 'none' },
+  }));
+
+  const taskNodes: Node[] = board.tasks.map((task) => ({
+    id: task.id,
+    type: 'task',
+    position: task.position,
+    data: {
+      task,
+      accentColor: laneById[task.ownerId]?.color ?? '#ffffff',
+      ownerLabel: laneById[task.ownerId]?.label ?? task.ownerId,
+      phaseLabel: phaseById[task.phaseId]?.label ?? '',
+      dimmed:
+        (statusFilter !== 'all' && task.status !== statusFilter) ||
+        (categoryFilter !== 'all' && task.category !== categoryFilter),
+      zoomMode,
+      isCurrentStep: task.id === currentStepTaskId,
+      isFocused: task.id === focusedTaskId,
+    },
+    draggable: true,
+  }));
+
+  return [...phaseNodes, ...laneNodes, ...taskNodes];
+}
+
 const STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'All statuses' },
   ...(Object.entries(STATUS_LABELS) as Array<[TaskStatus, string]>).map(
@@ -73,6 +158,7 @@ function BoardPage() {
   const {
     state,
     updateBoardLocal,
+    setInteracting,
     persistTask,
     createTask: apiCreateTask,
     removeTask,
@@ -91,6 +177,16 @@ function BoardPage() {
   );
   const [navHint, setNavHint] = useState<string | null>(null);
   const [zoomMode, setZoomMode] = useState<BoardZoomMode>('full');
+  // The card a navigation action (or the initial smart view) landed on gets
+  // a temporary indigo focus ring so it's obvious which ticket to look at.
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
+  // While a card is being dragged, a dashed ghost marks where it came from.
+  const [dragOrigin, setDragOrigin] = useState<{
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  } | null>(null);
 
   const [searchParams] = useSearchParams();
   const linkedTaskId = searchParams.get('task');
@@ -98,6 +194,7 @@ function BoardPage() {
   const instanceRef = useRef<ReactFlowInstance | null>(null);
   const centeredBoardRef = useRef<string | null>(null);
   const hintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
 
   // Semantic zoom: keep --board-zoom current (CSS counter-scaling for
@@ -121,14 +218,26 @@ function BoardPage() {
   useEffect(() => {
     return () => {
       if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
     };
   }, []);
 
-  const showHint = useCallback((message: string) => {
+  const showHint = useCallback((message: string, duration = 2500) => {
     setNavHint(message);
     if (hintTimerRef.current) clearTimeout(hintTimerRef.current);
-    hintTimerRef.current = setTimeout(() => setNavHint(null), 2500);
+    hintTimerRef.current = setTimeout(() => setNavHint(null), duration);
   }, []);
+
+  /** Ring-highlight a card for a few seconds and say why in the nav hint. */
+  const focusOnTask = useCallback(
+    (task: TaskCardData, hint: string) => {
+      setFocusedTaskId(task.id);
+      showHint(hint, 5000);
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+      focusTimerRef.current = setTimeout(() => setFocusedTaskId(null), 5000);
+    },
+    [showHint],
+  );
 
   const boardId = board?.id ?? null;
   // Local-only updates for drag ticks; persistence happens on drag stop.
@@ -191,11 +300,24 @@ function BoardPage() {
       console.log(`LaunchPad initial viewport target: ${target.reason}`);
       centerOnTarget(target);
       applyZoom('task' in target ? READABLE_ZOOM : PHASE_ZOOM);
+      // Tell the user what they landed on and ring the card so the board
+      // never opens on an unexplained spot.
+      if ('task' in target) {
+        const openedOn: Record<typeof target.kind, string> = {
+          'linked-task': '📍 Opened linked task',
+          'current-blocker': '📍 Current blocker',
+          'current-step': '📍 Current step',
+          'first-ready': '📍 Next ready task',
+        };
+        focusOnTask(target.task, `${openedOn[target.kind]} — “${target.task.title}”`);
+      } else {
+        showHint(`Viewing phase — “${target.phase.label}”`, 5000);
+      }
       if (target.kind === 'linked-task') {
         setSelectedTaskId(target.task.id);
       }
     },
-    [board, employee, linkedTaskId, centerOnTarget, applyZoom],
+    [board, employee, linkedTaskId, centerOnTarget, applyZoom, focusOnTask, showHint],
   );
 
   const goToCurrentStep = useCallback(() => {
@@ -211,8 +333,9 @@ function BoardPage() {
       zoom: READABLE_ZOOM,
       duration: 300,
     });
+    focusOnTask(task, `📍 Current step — “${task.title}”`);
     console.log(`Centered on current step — "${task.title}"`);
-  }, [board, showHint]);
+  }, [board, showHint, focusOnTask]);
 
   const goToBlocker = useCallback(() => {
     if (!board || !employee) return;
@@ -227,8 +350,9 @@ function BoardPage() {
       zoom: READABLE_ZOOM,
       duration: 300,
     });
+    focusOnTask(blocker, `📍 Blocker — “${blocker.title}”`);
     console.log(`Centered on blocker — "${blocker.title}"`);
-  }, [board, employee, showHint]);
+  }, [board, employee, showHint, focusOnTask]);
 
   const fitBoard = useCallback(() => {
     // Extra padding leaves room for the counter-scaled lane chips that hang
@@ -241,8 +365,13 @@ function BoardPage() {
     if (!board || !employee) return;
     const target = getInitialViewportTarget(board, employee, linkedTaskId);
     centerOnTarget(target, 300);
+    if ('task' in target) {
+      focusOnTask(target.task, `📍 ${target.reason}`);
+    } else {
+      showHint(`Viewing phase — “${target.phase.label}”`);
+    }
     console.log(`Reset to smart view — ${target.reason}`);
-  }, [board, employee, linkedTaskId, centerOnTarget]);
+  }, [board, employee, linkedTaskId, centerOnTarget, focusOnTask, showHint]);
 
   const jumpToPhase = useCallback(
     (phaseId: string) => {
@@ -334,29 +463,6 @@ function BoardPage() {
     [boardId, persistTask],
   );
 
-  // Drag ticks update local state only, so cards follow the cursor without
-  // hammering the API; the final position is persisted on drag stop.
-  const onNodesChange = useCallback(
-    (changes: NodeChange[]) => {
-      const moves = new Map<string, { x: number; y: number }>();
-      for (const change of changes) {
-        if (change.type === 'position' && change.position) {
-          moves.set(change.id, change.position);
-        }
-      }
-      if (moves.size === 0) return;
-      setBoardLocal((prev) => ({
-        ...prev,
-        tasks: prev.tasks.map((task) =>
-          moves.has(task.id)
-            ? { ...task, position: moves.get(task.id)! }
-            : task,
-        ),
-      }));
-    },
-    [setBoardLocal],
-  );
-
   const logDrag = (phase: 'start' | 'end', node: Node) => {
     if (node.type !== 'task') return;
     const task = node.data.task as TaskCardData;
@@ -365,9 +471,21 @@ function BoardPage() {
     );
   };
 
-  const onNodeDragStart: OnNodeDrag = useCallback((_event, node) => {
-    logDrag('start', node);
-  }, []);
+  const onNodeDragStart: OnNodeDrag = useCallback(
+    (_event, node) => {
+      logDrag('start', node);
+      setInteracting(true); // pause background reloads while dragging
+      if (node.type === 'task') {
+        setDragOrigin({
+          x: node.position.x,
+          y: node.position.y,
+          w: node.measured?.width ?? 210,
+          h: node.measured?.height ?? 110,
+        });
+      }
+    },
+    [setInteracting],
+  );
 
   // Dropping a card into a different phase region or swimlane reassigns its
   // phase/owner data; the final position (and any reassignment) is persisted
@@ -375,6 +493,8 @@ function BoardPage() {
   const onNodeDragStop: OnNodeDrag = useCallback(
     (_event, node) => {
       logDrag('end', node);
+      setInteracting(false);
+      setDragOrigin(null);
       if (node.type !== 'task' || !board || !boardId) return;
       const task = board.tasks.find((t) => t.id === node.id);
       if (!task) return;
@@ -417,9 +537,15 @@ function BoardPage() {
           ],
         };
       }
+      // Sync the final position into board state right away (one write per
+      // drag, not per tick), then persist; the server response merges in.
+      setBoardLocal((prev) => ({
+        ...prev,
+        tasks: prev.tasks.map((t) => (t.id === updated.id ? updated : t)),
+      }));
       void persistTask(boardId, updated);
     },
-    [board, boardId, persistTask],
+    [board, boardId, persistTask, setInteracting, setBoardLocal],
   );
 
   // The current step gets the clearest glow in overview/compact modes.
@@ -428,76 +554,66 @@ function BoardPage() {
     [board],
   );
 
-  const nodes: Node[] = useMemo(() => {
-    if (!board) return [];
-    const lastPhase = board.phases[board.phases.length - 1]!;
-    const lastLane = board.swimlanes[board.swimlanes.length - 1]!;
-    const canvasWidth = lastPhase.x + lastPhase.width + CANVAS_MARGIN;
-    const canvasHeight = lastLane.y + lastLane.height + CANVAS_MARGIN;
+  // Nodes live in React state, per React Flow's controlled-flow pattern:
+  // drag ticks flow through applyNodeChanges (fresh object refs so the card
+  // visibly tracks the cursor, with measured dimensions preserved so it
+  // never blinks out), while board-driven rebuilds happen only on discrete
+  // events below.
+  const [nodes, setNodes] = useState<Node[]>(() =>
+    board
+      ? buildNodes(
+          board,
+          statusFilter,
+          categoryFilter,
+          zoomMode,
+          currentStepTaskId,
+          focusedTaskId,
+        )
+      : [],
+  );
 
-    const laneById = Object.fromEntries(
-      board.swimlanes.map((lane) => [lane.id, lane]),
-    );
-    const phaseById = Object.fromEntries(
-      board.phases.map((phase) => [phase.id, phase]),
-    );
-
-    const phaseNodes: Node[] = board.phases.map((phase, index) => ({
-      id: `phase-${phase.id}`,
-      type: 'phaseRegion',
-      position: { x: phase.x, y: 0 },
-      data: {
-        label: phase.label,
-        width: phase.width,
-        height: canvasHeight,
-        striped: index % 2 === 1,
+  // Rebuild from board state on discrete changes (board sync from server,
+  // filters, zoom mode, focus/current-step). Carries each node's measured
+  // size and drag/selection flags over so React Flow never re-measures —
+  // replaced nodes without dimensions get hidden for a frame otherwise.
+  useEffect(() => {
+    if (!board) return;
+    setNodes((prev) => {
+      const prevById = new Map(prev.map((node) => [node.id, node]));
+      return buildNodes(
+        board,
+        statusFilter,
+        categoryFilter,
         zoomMode,
-      },
-      draggable: false,
-      selectable: false,
-      focusable: false,
-      zIndex: -2,
-      style: { pointerEvents: 'none' },
-    }));
+        currentStepTaskId,
+        focusedTaskId,
+      ).map((node) => {
+        const old = prevById.get(node.id);
+        return old
+          ? {
+              ...node,
+              measured: old.measured,
+              selected: old.selected,
+              dragging: old.dragging,
+            }
+          : node;
+      });
+    });
+  }, [
+    board,
+    statusFilter,
+    categoryFilter,
+    zoomMode,
+    currentStepTaskId,
+    focusedTaskId,
+  ]);
 
-    const laneNodes: Node[] = board.swimlanes.map((lane) => ({
-      id: `lane-${lane.id}`,
-      type: 'lane',
-      position: { x: 0, y: lane.y },
-      data: {
-        label: lane.label,
-        color: lane.color,
-        width: canvasWidth,
-        height: lane.height,
-        zoomMode,
-      },
-      draggable: false,
-      selectable: false,
-      focusable: false,
-      zIndex: -1,
-      style: { pointerEvents: 'none' },
-    }));
-
-    const taskNodes: Node[] = board.tasks.map((task) => ({
-      id: task.id,
-      type: 'task',
-      position: task.position,
-      data: {
-        task,
-        accentColor: laneById[task.ownerId]?.color ?? '#ffffff',
-        ownerLabel: laneById[task.ownerId]?.label ?? task.ownerId,
-        phaseLabel: phaseById[task.phaseId]?.label ?? '',
-        dimmed:
-          (statusFilter !== 'all' && task.status !== statusFilter) ||
-          (categoryFilter !== 'all' && task.category !== categoryFilter),
-        zoomMode,
-        isCurrentStep: task.id === currentStepTaskId,
-      },
-      draggable: true,
-    }));
-
-    return [...phaseNodes, ...laneNodes, ...taskNodes];
-  }, [board, statusFilter, categoryFilter, zoomMode, currentStepTaskId]);
+  // Drag ticks (and React Flow's own measurements) apply straight to node
+  // state — the canonical controlled pattern, so the card visibly follows
+  // the cursor. Board state is only updated once, on drag stop.
+  const onNodesChange = useCallback((changes: NodeChange[]) => {
+    setNodes((prev) => applyNodeChanges(changes, prev));
+  }, []);
 
   if (!employee || !board) {
     return (
@@ -575,6 +691,7 @@ function BoardPage() {
           onNodeDragStop={onNodeDragStop}
           minZoom={0.08}
           maxZoom={1.75}
+          deleteKeyCode={null}
         >
           <Background
             variant={BackgroundVariant.Dots}
@@ -582,6 +699,18 @@ function BoardPage() {
             size={1.5}
             color="#d5d8e0"
           />
+          {dragOrigin && (
+            <ViewportPortal>
+              <div
+                className={styles.dragGhost}
+                style={{
+                  transform: `translate(${dragOrigin.x}px, ${dragOrigin.y}px)`,
+                  width: dragOrigin.w,
+                  height: dragOrigin.h,
+                }}
+              />
+            </ViewportPortal>
+          )}
           <Controls showInteractive={false} />
           <Panel position="top-left" className={styles.navPanel}>
             <Button size="sm" onClick={goToCurrentStep}>
@@ -600,30 +729,29 @@ function BoardPage() {
           </Panel>
           {zoomMode === 'overview' && (
             <Panel position="bottom-right" className={styles.legend}>
-              <span className={styles.legendTitle}>Map legend</span>
-              <span className={styles.legendItem}>
-                <i className={styles.swatch} />
-                tile color = person (owner)
+              <span className={styles.legendTitle}>Map Legend</span>
+              <span className={styles.legendNote}>
+                Each color is one person — the card's owner
               </span>
               <span className={styles.legendItem}>
                 <i className={`${styles.swatch} ${styles.swatchGlow}`} />
-                in progress / current step
+                In progress / current step
               </span>
               <span className={styles.legendItem}>
                 <i className={`${styles.swatch} ${styles.swatchBlocked}`} />
-                blocked
+                Blocked
               </span>
               <span className={styles.legendItem}>
                 <i className={`${styles.swatch} ${styles.swatchMuted}`} />
-                done (muted ✓)
+                Done
               </span>
               <span className={styles.legendItem}>
                 <i className={`${styles.swatch} ${styles.swatchPale}`} />
-                not started (pale)
+                Not started
               </span>
               <span className={styles.legendItem}>
                 <i className={`${styles.swatch} ${styles.swatchNa}`} />
-                n/a (dashed)
+                Not applicable
               </span>
             </Panel>
           )}

@@ -20,6 +20,7 @@ export type TaskNodeType = Node<
     dimmed: boolean;
     zoomMode: BoardZoomMode;
     isCurrentStep: boolean;
+    isFocused: boolean;
   },
   'task'
 >;
@@ -88,7 +89,15 @@ function TaskNode({ data }: NodeProps<TaskNodeType>) {
   }
 
   return (
-    <div className={`${styles.taskNode} ${data.dimmed ? styles.dimmed : ''}`}>
+    <div
+      className={[
+        styles.taskNode,
+        data.dimmed ? styles.dimmed : '',
+        data.isFocused ? styles.focused : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <Handle
         type="target"
         position={Position.Left}

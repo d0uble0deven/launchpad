@@ -7,6 +7,41 @@
   opacity: 0.15;
 }
 
+/* React Flow tags the node wrapper with `.dragging` while it's in hand —
+   fade the card slightly and lift it with a drop shadow so it reads as
+   "picked up" (works in every zoom mode). */
+:global(.react-flow__node.dragging) .taskNode {
+  opacity: 0.75;
+  filter: drop-shadow(0 10px 18px rgba(31, 36, 48, 0.35));
+}
+
+/* Navigation focus ring: applied to the wrapper so it works in every zoom
+   mode (tile, compact, full card). Indigo, to stay distinct from the amber
+   current-step glow and the red blocked outline. */
+@keyframes focusPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 6px rgba(79, 70, 229, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 26px 12px rgba(79, 70, 229, 0.55);
+  }
+}
+
+.focused {
+  outline: 4px solid var(--color-primary);
+  outline-offset: 4px;
+  border-radius: 12px;
+  animation: focusPulse 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .focused {
+    animation: none;
+    box-shadow: 0 0 0 8px rgba(79, 70, 229, 0.35);
+  }
+}
+
 .handle {
   opacity: 0;
   pointer-events: none;

@@ -25,6 +25,12 @@ type AppStateContextValue = {
     boardId: string,
     updater: (board: OnboardingBoard) => OnboardingBoard,
   ) => void;
+  /**
+   * Mark a direct-manipulation interaction (card drag) as active. While
+   * active, background reloads (poll / window focus) are skipped so the
+   * board is never replaced mid-drag.
+   */
+  setInteracting: (active: boolean) => void;
   /** Persist a task (PATCH); server recalculates dependencies + notifies. */
   persistTask: (boardId: string, task: TaskCard) => Promise<void>;
   createTask: (boardId: string, task: TaskCard) => Promise<void>;
@@ -49,15 +55,52 @@ function logDependencyChanges(changes: DependencyChangeDto[]): void {
   }
 }
 
+/**
+ * Merge fresh tasks into a board, reusing the existing task object whenever
+ * its content is unchanged. Stable identities let the board's node memo skip
+ * untouched cards, so a server round-trip (poll, PATCH response) doesn't
+ * re-render all ~50 React Flow nodes — which read as a visible flash.
+ */
+function mergeTasks(prev: TaskCard[], fresh: TaskCard[]): TaskCard[] {
+  const prevById = new Map(prev.map((task) => [task.id, task]));
+  return fresh.map((task) => {
+    const old = prevById.get(task.id);
+    return old && JSON.stringify(old) === JSON.stringify(task) ? old : task;
+  });
+}
+
+/** Same idea, one level up: keep board object identity when nothing changed. */
+function mergeBoards(
+  prev: OnboardingBoard[],
+  fresh: OnboardingBoard[],
+): OnboardingBoard[] {
+  const prevById = new Map(prev.map((board) => [board.id, board]));
+  return fresh.map((board) => {
+    const old = prevById.get(board.id);
+    if (!old) return board;
+    if (JSON.stringify(old) === JSON.stringify(board)) return old;
+    return { ...board, tasks: mergeTasks(old.tasks, board.tasks) };
+  });
+}
+
 export function AppStateProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const templateSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const interactingRef = useRef(false);
+
+  const setInteracting = useCallback((active: boolean) => {
+    interactingRef.current = active;
+  }, []);
 
   const load = useCallback(async () => {
+    if (interactingRef.current) return; // never reload mid-drag
     try {
       const fresh = await api.fetchState();
-      setState(fresh);
+      if (interactingRef.current) return; // a drag started while fetching
+      setState((prev) =>
+        prev ? { ...fresh, boards: mergeBoards(prev.boards, fresh.boards) } : fresh,
+      );
       setError(null);
     } catch (err) {
       console.error('[api] failed to load state', err);
@@ -88,7 +131,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         ? {
             ...prev,
             boards: prev.boards.map((board) =>
-              board.id === boardId ? { ...board, tasks } : board,
+              board.id === boardId
+                ? { ...board, tasks: mergeTasks(board.tasks, tasks) }
+                : board,
             ),
           }
         : prev,
@@ -211,6 +256,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         ? {
             state,
             updateBoardLocal,
+            setInteracting,
             persistTask,
             createTask,
             removeTask,
@@ -223,6 +269,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     [
       state,
       updateBoardLocal,
+      setInteracting,
       persistTask,
       createTask,
       removeTask,

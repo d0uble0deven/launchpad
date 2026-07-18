@@ -18,7 +18,10 @@
 const nativeFetch = globalThis.fetch;
 
 if (typeof nativeFetch === 'function') {
-  globalThis.fetch = function patchedFetch(input: RequestInfo | URL, init?: RequestInit) {
+  globalThis.fetch = function patchedFetch(
+    input: Parameters<typeof fetch>[0],
+    init?: Parameters<typeof fetch>[1],
+  ) {
     if (init && typeof init.body === 'string' && init.body.length === 0) {
       init = { ...init, body: undefined };
     }
