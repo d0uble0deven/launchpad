@@ -116,6 +116,19 @@
   color: var(--color-text-muted);
 }
 
+/* Card palette preview: a tight strip of person-color chips. */
+.paletteStrip {
+  display: flex;
+  gap: 4px;
+}
+
+.paletteChip {
+  width: 20px;
+  height: 26px;
+  border-radius: 5px;
+  border: 1px solid rgba(120, 130, 150, 0.35);
+}
+
 /* Pill-style radio rows (branding, board opening view). */
 .optionRow {
   display: flex;

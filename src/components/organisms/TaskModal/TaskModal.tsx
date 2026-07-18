@@ -21,6 +21,8 @@ import styles from './TaskModal.module.css';
 type TaskModalProps = {
   task: TaskCard;
   board: OnboardingBoard;
+  /** Palette-aware owner color; falls back to the lane's stored color. */
+  accentColor?: string;
   onClose: () => void;
   onSave: (task: TaskCard) => void;
   onDelete: () => void;
@@ -54,6 +56,7 @@ function formatTimestamp(iso: string): string {
 function TaskModal({
   task,
   board,
+  accentColor,
   onClose,
   onSave,
   onDelete,
@@ -177,7 +180,9 @@ function TaskModal({
       >
         <div
           className={styles.accent}
-          style={{ background: lane?.color ?? 'var(--color-border)' }}
+          style={{
+            background: accentColor ?? lane?.color ?? 'var(--color-border)',
+          }}
         />
         <header className={styles.header}>
           <div className={styles.headerText}>

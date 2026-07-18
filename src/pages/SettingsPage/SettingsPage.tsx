@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Button from '../../components/atoms/Button/Button';
+import { CARD_PALETTES } from '../../logic/cardPalettes';
 import { useAppState } from '../../state/AppStateContext';
 import { usePreferences } from '../../state/PreferencesContext';
 import type {
@@ -119,6 +120,58 @@ function SettingsPage() {
               </span>
               <span className={styles.themeDescription}>
                 {option.description}
+              </span>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Card colors</h2>
+        <p className={styles.sectionHint}>
+          The per-person palette used for board cards, lane chips, and the
+          map. Every palette keeps colors distinct — boards with more people
+          than shown here get additional non-overlapping colors
+          automatically.
+        </p>
+        <div
+          className={styles.themeGrid}
+          role="radiogroup"
+          aria-label="Card color palette"
+        >
+          {CARD_PALETTES.map((palette) => (
+            <button
+              key={palette.id}
+              type="button"
+              role="radio"
+              aria-checked={preferences.cardPalette === palette.id}
+              className={[
+                styles.themeCard,
+                preferences.cardPalette === palette.id
+                  ? styles.themeCardActive
+                  : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => setPreference('cardPalette', palette.id)}
+            >
+              <span className={styles.paletteStrip} aria-hidden="true">
+                {palette.curated.slice(0, 8).map((color) => (
+                  <i
+                    key={color}
+                    className={styles.paletteChip}
+                    style={{ background: color }}
+                  />
+                ))}
+              </span>
+              <span className={styles.themeName}>
+                {palette.name}
+                {preferences.cardPalette === palette.id && (
+                  <span className={styles.activeBadge}>Active</span>
+                )}
+              </span>
+              <span className={styles.themeDescription}>
+                {palette.description}
               </span>
             </button>
           ))}

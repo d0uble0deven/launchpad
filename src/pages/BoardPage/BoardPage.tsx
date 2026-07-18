@@ -30,6 +30,7 @@ import {
   taskCenter,
 } from '../../logic/boardNavigation';
 import type { BoardZoomMode, ViewportTarget } from '../../logic/boardNavigation';
+import { laneColorMap } from '../../logic/cardPalettes';
 import {
   getCurrentBlocker,
   getNextActionableTask,
@@ -64,6 +65,7 @@ const CANVAS_MARGIN = 60;
  */
 function buildNodes(
   board: OnboardingBoard,
+  laneColors: Record<string, string>,
   statusFilter: TaskStatus | 'all',
   categoryFilter: TaskCategory | 'all',
   zoomMode: BoardZoomMode,
@@ -106,7 +108,7 @@ function buildNodes(
     position: { x: 0, y: lane.y },
     data: {
       label: lane.label,
-      color: lane.color,
+      color: laneColors[lane.id] ?? lane.color,
       width: canvasWidth,
       height: lane.height,
       zoomMode,
@@ -124,7 +126,7 @@ function buildNodes(
     position: task.position,
     data: {
       task,
-      accentColor: laneById[task.ownerId]?.color ?? '#ffffff',
+      accentColor: laneColors[task.ownerId] ?? '#ffffff',
       ownerLabel: laneById[task.ownerId]?.label ?? task.ownerId,
       phaseLabel: phaseById[task.phaseId]?.label ?? '',
       dimmed:
@@ -173,6 +175,12 @@ function BoardPage() {
   const employee = state.employees.find((e) => e.id === employeeId) ?? null;
   const board =
     state.boards.find((b) => b.employeeId === employeeId) ?? null;
+
+  // Display colors for every lane under the chosen card palette (Settings).
+  const laneColors = useMemo(
+    () => (board ? laneColorMap(board.swimlanes, preferences.cardPalette) : {}),
+    [board, preferences.cardPalette],
+  );
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<TaskStatus | 'all'>('all');
@@ -585,6 +593,7 @@ function BoardPage() {
     board
       ? buildNodes(
           board,
+          laneColors,
           statusFilter,
           categoryFilter,
           zoomMode,
@@ -604,6 +613,7 @@ function BoardPage() {
       const prevById = new Map(prev.map((node) => [node.id, node]));
       return buildNodes(
         board,
+        laneColors,
         statusFilter,
         categoryFilter,
         zoomMode,
@@ -623,6 +633,7 @@ function BoardPage() {
     });
   }, [
     board,
+    laneColors,
     statusFilter,
     categoryFilter,
     zoomMode,
@@ -647,6 +658,10 @@ function BoardPage() {
   }
 
   const summary = summarizeBoard(employee, board);
+  // Legend example swatches show the first lane's color in the active palette.
+  const legendSwatchStyle = {
+    background: laneColors[board.swimlanes[0]?.id ?? ''] ?? '#f9a8d4',
+  };
 
   return (
     <div className={styles.boardPage}>
@@ -756,19 +771,31 @@ function BoardPage() {
                 Each color is one person — the card's owner
               </span>
               <span className={styles.legendItem}>
-                <i className={`${styles.swatch} ${styles.swatchGlow}`} />
+                <i
+                  className={`${styles.swatch} ${styles.swatchGlow}`}
+                  style={legendSwatchStyle}
+                />
                 In progress / current step
               </span>
               <span className={styles.legendItem}>
-                <i className={`${styles.swatch} ${styles.swatchBlocked}`} />
+                <i
+                  className={`${styles.swatch} ${styles.swatchBlocked}`}
+                  style={legendSwatchStyle}
+                />
                 Blocked
               </span>
               <span className={styles.legendItem}>
-                <i className={`${styles.swatch} ${styles.swatchMuted}`} />
+                <i
+                  className={`${styles.swatch} ${styles.swatchMuted}`}
+                  style={legendSwatchStyle}
+                />
                 Done
               </span>
               <span className={styles.legendItem}>
-                <i className={`${styles.swatch} ${styles.swatchPale}`} />
+                <i
+                  className={`${styles.swatch} ${styles.swatchPale}`}
+                  style={legendSwatchStyle}
+                />
                 Not started
               </span>
               <span className={styles.legendItem}>
@@ -784,6 +811,7 @@ function BoardPage() {
           key={selectedTask.id}
           task={selectedTask}
           board={board}
+          accentColor={laneColors[selectedTask.ownerId]}
           onClose={closeModal}
           onSave={saveTask}
           onDelete={() => deleteTask(selectedTask.id)}

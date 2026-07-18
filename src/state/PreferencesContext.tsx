@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
+import type { CardPaletteId } from '../logic/cardPalettes';
 
 /** Which wordmark the header shows. 'auto' follows the active theme. */
 export type BrandingMode = 'auto' | 'launchpad' | 'docme360';
@@ -10,12 +11,14 @@ export type BoardOpenMode = 'smart' | 'fit';
 export type Preferences = {
   branding: BrandingMode;
   boardOpen: BoardOpenMode;
+  cardPalette: CardPaletteId;
   reduceMotion: boolean;
 };
 
 const DEFAULTS: Preferences = {
   branding: 'auto',
   boardOpen: 'smart',
+  cardPalette: 'classic',
   reduceMotion: false,
 };
 
@@ -35,6 +38,11 @@ function loadStored(): Preferences {
       boardOpen: ['smart', 'fit'].includes(parsed.boardOpen as string)
         ? (parsed.boardOpen as BoardOpenMode)
         : DEFAULTS.boardOpen,
+      cardPalette: ['classic', 'docme360', 'pastel'].includes(
+        parsed.cardPalette as string,
+      )
+        ? (parsed.cardPalette as CardPaletteId)
+        : DEFAULTS.cardPalette,
       reduceMotion:
         typeof parsed.reduceMotion === 'boolean'
           ? parsed.reduceMotion
