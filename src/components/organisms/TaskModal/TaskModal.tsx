@@ -8,6 +8,7 @@ import Select from '../../atoms/Select/Select';
 import StatusPill from '../../atoms/StatusPill/StatusPill';
 import TextArea from '../../atoms/TextArea/TextArea';
 import TextInput from '../../atoms/TextInput/TextInput';
+import type { OwnerDisplay } from '../../../logic/ownerDisplay';
 import type {
   OnboardingBoard,
   ResourceLink,
@@ -23,6 +24,8 @@ type TaskModalProps = {
   board: OnboardingBoard;
   /** Palette-aware owner color; falls back to the lane's stored color. */
   accentColor?: string;
+  /** Lane id → resolved person (name/title) for this hire's board. */
+  owners?: Record<string, OwnerDisplay>;
   onClose: () => void;
   onSave: (task: TaskCard) => void;
   onDelete: () => void;
@@ -57,6 +60,7 @@ function TaskModal({
   task,
   board,
   accentColor,
+  owners,
   onClose,
   onSave,
   onDelete,
@@ -193,7 +197,11 @@ function TaskModal({
               aria-label="Task title"
             />
             <p className={styles.subtitle}>
-              {phase?.label ?? 'No phase'} · {lane?.label ?? draft.ownerId}
+              {phase?.label ?? 'No phase'} ·{' '}
+              {owners?.[draft.ownerId]?.name ?? lane?.label ?? draft.ownerId}
+              {owners?.[draft.ownerId]?.title
+                ? ` (${owners[draft.ownerId]!.title})`
+                : ''}
               {draft.dueTiming ? ` · Due: ${draft.dueTiming}` : ''}
             </p>
           </div>
@@ -317,7 +325,7 @@ function TaskModal({
                 label="Owner"
                 options={board.swimlanes.map((l) => ({
                   value: l.id,
-                  label: l.label,
+                  label: owners?.[l.id]?.name ?? l.label,
                 }))}
                 value={draft.ownerId}
                 onChange={(event) => patch({ ownerId: event.target.value })}

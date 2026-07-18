@@ -39,6 +39,100 @@ function ComponentGallery() {
       <h1 className={styles.heading}>Component Gallery (temporary)</h1>
 
       <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Logo concepts (pick one!)</h2>
+        <div className={styles.row}>
+          {/* A — Orbit: the onboarding journey circles the pad; the ring
+              nods to "360". */}
+          <span className={styles.logoOption}>
+            <svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true">
+              <circle
+                cx="24"
+                cy="26"
+                r="11"
+                fill="none"
+                stroke="var(--color-primary)"
+                strokeWidth="3.5"
+              />
+              <ellipse
+                cx="24"
+                cy="24"
+                rx="21"
+                ry="8"
+                fill="none"
+                stroke="var(--color-accent)"
+                strokeWidth="2.5"
+                transform="rotate(-18 24 24)"
+              />
+              <circle cx="42" cy="16" r="4" fill="var(--color-accent)" />
+            </svg>
+            <span className={styles.logoLabel}>
+              A · Orbit 360
+              <small>journey around the pad</small>
+            </span>
+          </span>
+          {/* B — Liftoff: rocket-arrow leaving the pad. */}
+          <span className={styles.logoOption}>
+            <svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true">
+              <path
+                d="M24 4 L34 24 L28.5 22 L28.5 33 L19.5 33 L19.5 22 L14 24 Z"
+                fill="var(--color-primary)"
+              />
+              <rect
+                x="10"
+                y="38"
+                width="28"
+                height="4.5"
+                rx="2.25"
+                fill="var(--color-accent)"
+              />
+            </svg>
+            <span className={styles.logoLabel}>
+              B · Liftoff
+              <small>rocket leaving the pad</small>
+            </span>
+          </span>
+          {/* C — DocMe brackets: the company's ‹ › mark with a launch
+              inside — LaunchPad as a DocMe360 tool. */}
+          <span className={styles.logoOption}>
+            <svg width="44" height="44" viewBox="0 0 48 48" aria-hidden="true">
+              <path
+                d="M13 12 L4 24 L13 36"
+                fill="none"
+                stroke="var(--color-primary)"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M35 12 L44 24 L35 36"
+                fill="none"
+                stroke="var(--color-primary)"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M24 10 L29.5 24 L24 21.5 L18.5 24 Z"
+                fill="var(--color-accent)"
+              />
+              <rect
+                x="19"
+                y="30"
+                width="10"
+                height="3.5"
+                rx="1.75"
+                fill="var(--color-accent)"
+              />
+            </svg>
+            <span className={styles.logoLabel}>
+              C · DocMe brackets
+              <small>launch inside ‹ ›</small>
+            </span>
+          </span>
+        </div>
+      </section>
+
+      <section className={styles.section}>
         <h2 className={styles.sectionTitle}>Atoms — Button</h2>
         <div className={styles.row}>
           <Button variant="primary">Save</Button>

@@ -26,8 +26,8 @@ export const CARD_PALETTES: CardPalette[] = [
     description:
       'The bright per-person palette boards ship with. Uses each lane’s own stored color.',
     curated: [
-      '#f9a8d4', '#2dd4bf', '#a78bfa', '#f87171', '#fcd34d', '#a3e635',
-      '#fb923c', '#38bdf8', '#4ade80', '#818cf8', '#e879f9',
+      '#4ade80', '#2dd4bf', '#a78bfa', '#f87171', '#fcd34d', '#a3e635',
+      '#fb923c', '#38bdf8', '#f9a8d4', '#818cf8', '#e879f9',
     ],
     overflow: { saturation: 78, lightness: 72 },
   },
@@ -56,8 +56,8 @@ export const CARD_PALETTES: CardPalette[] = [
     name: 'Soft pastel',
     description: 'Gentle washed-out tints — easy on the eyes at a glance.',
     curated: [
-      '#f7c8dd', '#b8e6dc', '#d4c8f0', '#f5c2c2', '#f7e3a8', '#dcefb5',
-      '#f7d2b0', '#c2e2f5', '#c8ecd2', '#ccd2f7', '#f0ccf5',
+      '#c8ecd2', '#b8e6dc', '#d4c8f0', '#f5c2c2', '#f7e3a8', '#dcefb5',
+      '#f7d2b0', '#c2e2f5', '#f7c8dd', '#ccd2f7', '#f0ccf5',
     ],
     overflow: { saturation: 60, lightness: 84 },
   },

@@ -174,3 +174,13 @@
   align-items: center;
   gap: 4px;
 }
+
+.compactOwner {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(31, 36, 48, 0.75);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}

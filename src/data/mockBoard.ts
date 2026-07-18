@@ -38,7 +38,7 @@ const LANE_HEIGHT = 170;
 // Lane order follows the real Mural board. Each person gets a clearly
 // distinct hue (cards, tiles, and lane chips all inherit it).
 const LANE_DEFS: Array<Pick<BoardSwimlane, 'id' | 'label' | 'color'>> = [
-  { id: 'employee', label: 'Employee', color: '#f9a8d4' }, // pink
+  { id: 'employee', label: 'Employee', color: '#4ade80' }, // green — the hire
   { id: 'justin', label: 'Justin', color: '#2dd4bf' }, // teal
   { id: 'hiring-supervisor', label: 'Hiring Supervisor', color: '#a78bfa' }, // purple
   { id: 'paras', label: 'Paras', color: '#f87171' }, // red
@@ -46,7 +46,7 @@ const LANE_DEFS: Array<Pick<BoardSwimlane, 'id' | 'label' | 'color'>> = [
   { id: 'jana', label: 'Jana', color: '#a3e635' }, // lime
   { id: 'melissa', label: 'Melissa', color: '#fb923c' }, // orange
   { id: 'anupe', label: 'Anupe', color: '#38bdf8' }, // sky
-  { id: 'sheila', label: 'Sheila', color: '#4ade80' }, // green
+  { id: 'sheila', label: 'Sheila', color: '#f9a8d4' }, // pink
   { id: 'project-lead', label: 'Project Lead', color: '#818cf8' }, // indigo
   { id: 'becca', label: 'Becca', color: '#e879f9' }, // fuchsia
 ];

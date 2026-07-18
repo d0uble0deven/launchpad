@@ -31,6 +31,8 @@ import {
 } from '../../logic/boardNavigation';
 import type { BoardZoomMode, ViewportTarget } from '../../logic/boardNavigation';
 import { laneColorMap } from '../../logic/cardPalettes';
+import { ownerDisplayMap } from '../../logic/ownerDisplay';
+import type { OwnerDisplay } from '../../logic/ownerDisplay';
 import {
   getCurrentBlocker,
   getNextActionableTask,
@@ -66,6 +68,7 @@ const CANVAS_MARGIN = 60;
 function buildNodes(
   board: OnboardingBoard,
   laneColors: Record<string, string>,
+  owners: Record<string, OwnerDisplay>,
   statusFilter: TaskStatus | 'all',
   categoryFilter: TaskCategory | 'all',
   zoomMode: BoardZoomMode,
@@ -107,7 +110,8 @@ function buildNodes(
     type: 'lane',
     position: { x: 0, y: lane.y },
     data: {
-      label: lane.label,
+      label: owners[lane.id]?.name ?? lane.label,
+      title: owners[lane.id]?.title ?? null,
       color: laneColors[lane.id] ?? lane.color,
       width: canvasWidth,
       height: lane.height,
@@ -127,7 +131,11 @@ function buildNodes(
     data: {
       task,
       accentColor: laneColors[task.ownerId] ?? '#ffffff',
-      ownerLabel: laneById[task.ownerId]?.label ?? task.ownerId,
+      ownerLabel:
+        owners[task.ownerId]?.name ??
+        laneById[task.ownerId]?.label ??
+        task.ownerId,
+      ownerTitle: owners[task.ownerId]?.title ?? null,
       phaseLabel: phaseById[task.phaseId]?.label ?? '',
       dimmed:
         (statusFilter !== 'all' && task.status !== statusFilter) ||
@@ -180,6 +188,12 @@ function BoardPage() {
   const laneColors = useMemo(
     () => (board ? laneColorMap(board.swimlanes, preferences.cardPalette) : {}),
     [board, preferences.cardPalette],
+  );
+
+  // Role lanes resolved to the actual people on this hire's board.
+  const owners = useMemo(
+    () => (board ? ownerDisplayMap(board.swimlanes, employee) : {}),
+    [board, employee],
   );
 
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
@@ -594,6 +608,7 @@ function BoardPage() {
       ? buildNodes(
           board,
           laneColors,
+          owners,
           statusFilter,
           categoryFilter,
           zoomMode,
@@ -614,6 +629,7 @@ function BoardPage() {
       return buildNodes(
         board,
         laneColors,
+        owners,
         statusFilter,
         categoryFilter,
         zoomMode,
@@ -634,6 +650,7 @@ function BoardPage() {
   }, [
     board,
     laneColors,
+    owners,
     statusFilter,
     categoryFilter,
     zoomMode,
@@ -660,7 +677,7 @@ function BoardPage() {
   const summary = summarizeBoard(employee, board);
   // Legend example swatches show the first lane's color in the active palette.
   const legendSwatchStyle = {
-    background: laneColors[board.swimlanes[0]?.id ?? ''] ?? '#f9a8d4',
+    background: laneColors[board.swimlanes[0]?.id ?? ''] ?? '#4ade80',
   };
 
   return (
@@ -812,6 +829,7 @@ function BoardPage() {
           task={selectedTask}
           board={board}
           accentColor={laneColors[selectedTask.ownerId]}
+          owners={owners}
           onClose={closeModal}
           onSave={saveTask}
           onDelete={() => deleteTask(selectedTask.id)}

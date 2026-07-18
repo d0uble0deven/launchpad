@@ -82,6 +82,8 @@ export type BoardPhase = {
 export type BoardSwimlane = {
   id: string;
   label: string;
+  /** Optional role/title shown under the person's name on cards. */
+  title?: string;
   color: string;
   y: number;
   height: number;

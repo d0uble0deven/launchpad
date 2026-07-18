@@ -5,6 +5,7 @@ import type {
   TaskCategory,
 } from '../types/board';
 import { CATEGORY_LABELS } from '../types/board';
+import { resolveOwnerDisplay } from './ownerDisplay';
 
 /**
  * Day offset (relative to start date) by which each phase should be finished.
@@ -161,10 +162,17 @@ export function summarizeBoard(
   const currentBlockerTask = getCurrentBlocker(board, employee, today);
   const currentBlocker = currentBlockerTask?.title ?? null;
 
-  // Next owner: whoever holds the first task that is actionable right now.
+  // Next owner: whoever holds the first task that is actionable right now
+  // (resolved to the actual person where the lane is a role).
   const nextTask = getNextActionableTask(board);
   const nextOwnerId = nextTask?.ownerId ?? null;
-  const nextOwner = nextOwnerId ? (laneLabel[nextOwnerId] ?? nextOwnerId) : null;
+  const nextOwner = nextOwnerId
+    ? resolveOwnerDisplay(
+        nextOwnerId,
+        laneLabel[nextOwnerId] ?? nextOwnerId,
+        employee,
+      ).name
+    : null;
 
   const overdueCount = startingSoon
     ? 0

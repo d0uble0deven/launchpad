@@ -1,4 +1,5 @@
 import { getFirstReadyTask } from '../../../../src/logic/boardNavigation';
+import { resolveOwnerDisplay } from '../../../../src/logic/ownerDisplay';
 import {
   getCurrentBlocker,
   getNextActionableTask,
@@ -88,8 +89,12 @@ function handleStatus(query: string): CommandResponse {
   const summary = summarizeBoard(employee, board);
   const blockerTask = getCurrentBlocker(board, employee);
   const blockerOwner = blockerTask
-    ? (board.swimlanes.find((lane) => lane.id === blockerTask.ownerId)?.label ??
-      blockerTask.ownerId)
+    ? resolveOwnerDisplay(
+        blockerTask.ownerId,
+        board.swimlanes.find((lane) => lane.id === blockerTask.ownerId)
+          ?.label ?? blockerTask.ownerId,
+        employee,
+      ).name
     : null;
   const nextReady = getFirstReadyTask(board) ?? getNextActionableTask(board);
   return formatStatusResponse({
@@ -125,9 +130,12 @@ function handleBlockers(query: string): CommandResponse {
     rows.push({
       employee,
       blocker,
-      ownerLabel:
-        board.swimlanes.find((lane) => lane.id === blocker.ownerId)?.label ??
+      ownerLabel: resolveOwnerDisplay(
         blocker.ownerId,
+        board.swimlanes.find((lane) => lane.id === blocker.ownerId)?.label ??
+          blocker.ownerId,
+        employee,
+      ).name,
     });
   }
   return formatBlockersResponse(rows, query.trim() || null, queried);

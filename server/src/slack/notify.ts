@@ -1,4 +1,5 @@
 import type { Employee, OnboardingBoard, TaskCard } from '../../../src/types/board';
+import { resolveOwnerDisplay } from '../../../src/logic/ownerDisplay';
 import { config } from '../env';
 import * as store from '../store';
 import type { NotificationRecord } from '../store';
@@ -123,9 +124,16 @@ export async function notifyTaskOwner(
   reason: string,
 ): Promise<NotificationRecord> {
   const employee = store.getEmployee(board.employeeId);
-  const ownerLabel =
-    board.swimlanes.find((lane) => lane.id === task.ownerId)?.label ??
-    task.ownerId;
+  const lane = board.swimlanes.find((l) => l.id === task.ownerId);
+  const ownerDisplay = resolveOwnerDisplay(
+    task.ownerId,
+    lane?.label ?? task.ownerId,
+    employee,
+    lane?.title,
+  );
+  const ownerLabel = ownerDisplay.title
+    ? `${ownerDisplay.name} (${ownerDisplay.title})`
+    : ownerDisplay.name;
   const intendedUserId = config.slack.ownerMap[task.ownerId] ?? null;
   const delivery = resolveDelivery(intendedUserId);
 

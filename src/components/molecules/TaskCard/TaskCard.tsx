@@ -7,6 +7,8 @@ import styles from './TaskCard.module.css';
 type TaskCardProps = {
   title: string;
   owner: string;
+  /** The owner's role/title, shown under the name at full zoom. */
+  ownerTitle?: string | null;
   status: TaskStatus;
   category: TaskCategory;
   /** Phase or due timing shown in the footer, e.g. "First Day". */
@@ -19,6 +21,7 @@ type TaskCardProps = {
 function TaskCard({
   title,
   owner,
+  ownerTitle,
   status,
   category,
   phaseLabel,
@@ -56,7 +59,12 @@ function TaskCard({
         <CategoryTag category={category} />
       </div>
       <div className={styles.footer}>
-        <OwnerPill name={owner} />
+        <span className={styles.ownerWrap}>
+          <OwnerPill name={owner} />
+          {ownerTitle && (
+            <span className={styles.ownerTitle}>{ownerTitle}</span>
+          )}
+        </span>
         {phaseLabel && <span className={styles.phase}>{phaseLabel}</span>}
       </div>
     </button>

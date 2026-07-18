@@ -49,3 +49,27 @@
 .formRow > * {
   flex: 1;
 }
+
+/* Logo concept candidates (temporary, for picking a direction). */
+.logoOption {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.logoLabel {
+  display: flex;
+  flex-direction: column;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.logoLabel small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-text-muted);
+}

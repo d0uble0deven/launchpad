@@ -35,6 +35,7 @@
   left: 16px;
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   padding: 8px 14px;
   border-radius: var(--radius-sm);
   border: 1px solid rgba(31, 36, 48, 0.1);
@@ -54,4 +55,12 @@
   font-size: 11px;
   transform: translateX(-100%) scale(calc(1 / var(--board-zoom, 1)));
   transform-origin: top right;
+}
+
+/* The person's role, appended to the lane chip at full zoom. */
+.laneTitle {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: rgba(31, 36, 48, 0.62);
+  white-space: nowrap;
 }

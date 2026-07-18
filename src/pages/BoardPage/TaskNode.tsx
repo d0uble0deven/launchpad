@@ -16,6 +16,7 @@ export type TaskNodeType = Node<
     task: TaskCardData;
     accentColor: string;
     ownerLabel: string;
+    ownerTitle: string | null;
     phaseLabel: string;
     dimmed: boolean;
     zoomMode: BoardZoomMode;
@@ -36,7 +37,7 @@ const STATUS_TILE_CLASS: Record<TaskStatus, string> = {
 
 function TaskNode({ data }: NodeProps<TaskNodeType>) {
   const { task, zoomMode, isCurrentStep } = data;
-  const tooltip = `${task.title} — ${STATUS_LABELS[task.status]}`;
+  const tooltip = `${task.title} — ${data.ownerLabel} · ${STATUS_LABELS[task.status]}`;
 
   let content: React.ReactNode;
   if (zoomMode === 'overview') {
@@ -72,6 +73,10 @@ function TaskNode({ data }: NodeProps<TaskNodeType>) {
         <div className={styles.compactMeta}>
           <StatusPill status={task.status} />
           <CategoryTag category={task.category} />
+          <span className={styles.compactOwner}>
+            {data.ownerLabel}
+            {data.ownerTitle ? ` · ${data.ownerTitle}` : ''}
+          </span>
         </div>
       </div>
     );
@@ -80,6 +85,7 @@ function TaskNode({ data }: NodeProps<TaskNodeType>) {
       <TaskCard
         title={task.title}
         owner={data.ownerLabel}
+        ownerTitle={data.ownerTitle}
         status={task.status}
         category={task.category}
         phaseLabel={data.phaseLabel}

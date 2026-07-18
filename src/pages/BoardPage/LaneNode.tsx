@@ -5,6 +5,8 @@ import styles from './regions.module.css';
 export type LaneNodeType = Node<
   {
     label: string;
+    /** The person's role/title — shown next to the name at full zoom. */
+    title?: string | null;
     color: string;
     width: number;
     height: number;
@@ -25,6 +27,9 @@ function LaneNode({ data }: NodeProps<LaneNodeType>) {
         style={{ background: data.color }}
       >
         {data.label}
+        {data.zoomMode === 'full' && data.title && (
+          <span className={styles.laneTitle}>({data.title})</span>
+        )}
       </span>
     </div>
   );
