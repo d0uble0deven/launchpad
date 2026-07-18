@@ -36,6 +36,7 @@ import {
   summarizeBoard,
 } from '../../logic/progress';
 import { useAppState } from '../../state/AppStateContext';
+import { usePreferences } from '../../state/PreferencesContext';
 import type {
   OnboardingBoard,
   TaskCard as TaskCardData,
@@ -165,6 +166,9 @@ function BoardPage() {
     remindTask,
     resetAll,
   } = useAppState();
+  const { preferences } = usePreferences();
+  // Honor the "reduce animations" setting for viewport flights too.
+  const navDuration = preferences.reduceMotion ? 0 : 300;
 
   const employee = state.employees.find((e) => e.id === employeeId) ?? null;
   const board =
@@ -296,6 +300,15 @@ function BoardPage() {
       if (!board || !employee) return;
       if (centeredBoardRef.current === board.id) return;
       centeredBoardRef.current = board.id;
+      // "Board opens to: Whole board" preference — deep links still win.
+      if (!linkedTaskId && preferences.boardOpen === 'fit') {
+        console.log('LaunchPad initial viewport: whole board (preference)');
+        void instance.fitView({ padding: 0.15 }).then(() => {
+          applyZoom(instance.getViewport().zoom);
+        });
+        showHint('Viewing whole board', 5000);
+        return;
+      }
       const target = getInitialViewportTarget(board, employee, linkedTaskId);
       console.log(`LaunchPad initial viewport target: ${target.reason}`);
       centerOnTarget(target);
@@ -317,7 +330,16 @@ function BoardPage() {
         setSelectedTaskId(target.task.id);
       }
     },
-    [board, employee, linkedTaskId, centerOnTarget, applyZoom, focusOnTask, showHint],
+    [
+      board,
+      employee,
+      linkedTaskId,
+      centerOnTarget,
+      applyZoom,
+      focusOnTask,
+      showHint,
+      preferences.boardOpen,
+    ],
   );
 
   const goToCurrentStep = useCallback(() => {
@@ -331,7 +353,7 @@ function BoardPage() {
     const { x, y } = taskCenter(task);
     void instanceRef.current?.setCenter(x, y, {
       zoom: READABLE_ZOOM,
-      duration: 300,
+      duration: navDuration,
     });
     focusOnTask(task, `📍 Current step — “${task.title}”`);
     console.log(`Centered on current step — "${task.title}"`);
@@ -348,7 +370,7 @@ function BoardPage() {
     const { x, y } = taskCenter(blocker);
     void instanceRef.current?.setCenter(x, y, {
       zoom: READABLE_ZOOM,
-      duration: 300,
+      duration: navDuration,
     });
     focusOnTask(blocker, `📍 Blocker — “${blocker.title}”`);
     console.log(`Centered on blocker — "${blocker.title}"`);
@@ -357,14 +379,14 @@ function BoardPage() {
   const fitBoard = useCallback(() => {
     // Extra padding leaves room for the counter-scaled lane chips that hang
     // into the left gutter at overview zoom.
-    void instanceRef.current?.fitView({ padding: 0.15, duration: 300 });
+    void instanceRef.current?.fitView({ padding: 0.15, duration: navDuration });
     console.log('Fit full board');
   }, []);
 
   const resetSmartView = useCallback(() => {
     if (!board || !employee) return;
     const target = getInitialViewportTarget(board, employee, linkedTaskId);
-    centerOnTarget(target, 300);
+    centerOnTarget(target, navDuration);
     if ('task' in target) {
       focusOnTask(target.task, `📍 ${target.reason}`);
     } else {
@@ -380,7 +402,7 @@ function BoardPage() {
       const { x, y } = phaseCenter(board, phase);
       void instanceRef.current?.setCenter(x, y, {
         zoom: PHASE_ZOOM,
-        duration: 300,
+        duration: navDuration,
       });
       console.log(`Centered on phase "${phase.label}"`);
     },

@@ -36,6 +36,16 @@
   --color-accent: #b32d2e;
 }
 
+/* "Reduce animations" preference (Settings) — the OS-level
+   prefers-reduced-motion media queries still apply on top of this. */
+:root[data-motion='reduce'] *,
+:root[data-motion='reduce'] *::before,
+:root[data-motion='reduce'] *::after {
+  animation-duration: 0.001s !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001s !important;
+}
+
 /* Midnight: low-glare dark mode. */
 :root[data-theme='midnight'] {
   --color-bg: #10141c;
